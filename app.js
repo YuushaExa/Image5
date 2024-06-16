@@ -4,7 +4,7 @@ document.getElementById('contrast').addEventListener('input', updateFilters);
 document.getElementById('saturation').addEventListener('input', updateFilters);
 document.getElementById('hue').addEventListener('input', updateFilters);
 document.getElementById('filter').addEventListener('change', updateFilters);
-document.getElementById('move').addEventListener('click', startMoveMode);
+document.getElementById('move').addEventListener('click', toggleMoveMode);
 
 const canvas = document.getElementById('canvas');
 const gl = canvas.getContext('webgl');
@@ -201,9 +201,13 @@ function render() {
     gl.drawArrays(gl.TRIANGLES, 0, 6);
 }
 
-function startMoveMode() {
-    isMoveMode = true;
-    updateFrame();
+function toggleMoveMode() {
+    isMoveMode = !isMoveMode;
+    if (isMoveMode) {
+        updateFrame();
+    } else {
+        frame.style.display = 'none';
+    }
 }
 
 function updateFrame() {
@@ -217,6 +221,31 @@ function updateFrame() {
     frame.style.top = `${centerY - frameSize / 2}px`;
     frame.style.transform = `rotate(${objectAngle}deg)`;
 }
+
+canvas.addEventListener('mousedown', (e) => {
+    if (isMoveMode) {
+        initialMousePos.x = e.clientX;
+        initialMousePos.y = e.clientY;
+        isDragging = true;
+    }
+});
+
+canvas.addEventListener('mousemove', (e) => {
+    if (isMoveMode && isDragging) {
+        const dx = e.clientX - initialMousePos.x;
+        const dy = e.clientY - initialMousePos.y;
+        objectPos.x += dx / canvas.width;
+        objectPos.y -= dy / canvas.height;
+        initialMousePos.x = e.clientX;
+        initialMousePos.y = e.clientY;
+        render();
+        updateFrame();
+    }
+});
+
+canvas.addEventListener('mouseup', () => {
+    isDragging = false;
+});
 
 canvas.addEventListener('touchstart', (e) => {
     if (isMoveMode) {
@@ -241,10 +270,51 @@ canvas.addEventListener('touchmove', (e) => {
 });
 
 canvas.addEventListener('touchend', () => {
-    isMoveMode = false;
+    isDragging = false;
 });
 
 handles.forEach(handle => {
+    handle.addEventListener('mousedown', (e) => {
+        e.stopPropagation();
+        initialMousePos.x = e.clientX;
+        initialMousePos.y = e.clientY;
+        if (handle.classList.contains('rotate')) {
+            isRotating = true;
+            startAngle = objectAngle;
+        } else {
+            isResizing = true;
+            startDistance = Math.hypot(initialMousePos.x - canvas.width / 2, initialMousePos.y - canvas.height / 2);
+        }
+    });
+
+    handle.addEventListener('mousemove', (e) => {
+        if (isResizing || isRotating) {
+            const dx = e.clientX - initialMousePos.x;
+            const dy = e.clientY - initialMousePos.y;
+
+            if (isResizing) {
+                const currentDistance = Math.hypot(e.clientX - canvas.width / 2, e.clientY - canvas.height / 2);
+                const scale = currentDistance / startDistance;
+                objectScale.x *= scale;
+                objectScale.y *= scale;
+                startDistance = currentDistance;
+            }
+
+            if (isRotating) {
+                const angle = Math.atan2(dy, dx);
+                objectAngle = startAngle + (angle * 180) / Math.PI;
+            }
+
+            render();
+            updateFrame();
+        }
+    });
+
+    handle.addEventListener('mouseup', () => {
+        isResizing = false;
+        isRotating = false;
+    });
+
     handle.addEventListener('touchstart', (e) => {
         e.stopPropagation();
         const touch = e.touches[0];
@@ -260,25 +330,27 @@ handles.forEach(handle => {
     });
 
     handle.addEventListener('touchmove', (e) => {
-        const touch = e.touches[0];
-        const dx = touch.clientX - initialMousePos.x;
-        const dy = touch.clientY - initialMousePos.y;
+        if (isResizing || isRotating) {
+            const touch = e.touches[0];
+            const dx = touch.clientX - initialMousePos.x;
+            const dy = touch.clientY - initialMousePos.y;
 
-        if (isResizing) {
-            const currentDistance = Math.hypot(touch.clientX - canvas.width / 2, touch.clientY - canvas.height / 2);
-            const scale = currentDistance / startDistance;
-            objectScale.x *= scale;
-            objectScale.y *= scale;
-            startDistance = currentDistance;
+            if (isResizing) {
+                const currentDistance = Math.hypot(touch.clientX - canvas.width / 2, touch.clientY - canvas.height / 2);
+                const scale = currentDistance / startDistance;
+                objectScale.x *= scale;
+                objectScale.y *= scale;
+                startDistance = currentDistance;
+            }
+
+            if (isRotating) {
+                const angle = Math.atan2(dy, dx);
+                objectAngle = startAngle + (angle * 180) / Math.PI;
+            }
+
+            render();
+            updateFrame();
         }
-
-        if (isRotating) {
-            const angle = Math.atan2(dy, dx);
-            objectAngle = startAngle + (angle * 180) / Math.PI;
-        }
-
-        render();
-        updateFrame();
     });
 
     handle.addEventListener('touchend', () => {
