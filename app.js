@@ -32,7 +32,7 @@ const kernels = {
         1/9, 1/9, 1/9,
         1/9, 1/9, 1/9
     ],
-    edge-detect: [
+    edgedetect: [
         -1, -1, -1,
         -1, 8, -1,
         -1, -1, -1
