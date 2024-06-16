@@ -4,6 +4,7 @@ document.getElementById('contrast').addEventListener('input', updateFilters);
 document.getElementById('saturation').addEventListener('input', updateFilters);
 document.getElementById('hue').addEventListener('input', updateFilters);
 document.getElementById('filter').addEventListener('change', updateFilters);
+document.getElementById('move').addEventListener('click', startMoveMode);
 
 const canvas = document.getElementById('canvas');
 const gl = canvas.getContext('webgl');
@@ -15,6 +16,13 @@ let contrast = 1;
 let saturation = 1;
 let hue = 0;
 let filter = 'none';
+
+let isMoveMode = false;
+let isDragging = false;
+let initialMousePos = { x: 0, y: 0 };
+let objectPos = { x: 0, y: 0 };
+let objectScale = { x: 1, y: 1 };
+let objectAngle = 0;
 
 const kernels = {
     none: [
@@ -32,7 +40,7 @@ const kernels = {
         1/9, 1/9, 1/9,
         1/9, 1/9, 1/9
     ],
-    edgedetect: [
+    'edge-detect': [
         -1, -1, -1,
         -1, 8, -1,
         -1, -1, -1
@@ -52,6 +60,9 @@ function handleImageUpload(event) {
         img.onload = function() {
             canvas.width = img.width;
             canvas.height = img.height;
+            document.getElementById('object-width').textContent = img.width;
+            document.getElementById('object-height').textContent = img.height;
+            document.getElementById('object-angle').textContent = '0'; // Assume 0 for simplicity
             setupWebGL(img);
         }
         img.src = e.target.result;
@@ -160,15 +171,56 @@ function render() {
     gl.uniformMatrix3fv(gl.getUniformLocation(program, 'u_kernel'), false, new Float32Array(kernels[filter]));
     gl.uniform2f(gl.getUniformLocation(program, 'u_textureSize'), canvas.width, canvas.height);
 
+    // Transformations
+    const angleInRadians = (objectAngle * Math.PI) / 180;
+    const cos = Math.cos(angleInRadians);
+    const sin = Math.sin(angleInRadians);
+    const transformMatrix = new Float32Array([
+        objectScale.x * cos, objectScale.x * sin, 0,
+        -objectScale.y * sin, objectScale.y * cos, 0,
+        objectPos.x, objectPos.y, 1
+    ]);
+    gl.uniformMatrix3fv(gl.getUniformLocation(program, 'u_transform'), false, transformMatrix);
+
     gl.drawArrays(gl.TRIANGLES, 0, 6);
 }
+
+function startMoveMode() {
+    isMoveMode = true;
+}
+
+canvas.addEventListener('mousedown', (e) => {
+    if (isMoveMode) {
+        isDragging = true;
+        initialMousePos.x = e.clientX;
+        initialMousePos.y = e.clientY;
+    }
+});
+
+canvas.addEventListener('mousemove', (e) => {
+    if (isDragging) {
+        const dx = e.clientX - initialMousePos.x;
+        const dy = e.clientY - initialMousePos.y;
+        objectPos.x += dx / canvas.width;
+        objectPos.y -= dy / canvas.height;
+        initialMousePos.x = e.clientX;
+        initialMousePos.y = e.clientY;
+        render();
+    }
+});
+
+canvas.addEventListener('mouseup', () => {
+    isDragging = false;
+    isMoveMode = false;
+});
 
 const vertexShaderSource = `
     attribute vec4 a_position;
     attribute vec2 a_texCoord;
     varying vec2 v_texCoord;
+    uniform mat3 u_transform;
     void main() {
-        gl_Position = a_position;
+        gl_Position = vec4((u_transform * vec3(a_position.xy, 1)).xy, 0, 1);
         v_texCoord = a_texCoord;
     }
 `;
@@ -213,3 +265,4 @@ const fragmentShaderSource = `
         gl_FragColor = color;
     }
 `;
+    
