@@ -422,7 +422,6 @@ const cursorSizeInput = document.getElementById('cursorSize');
 const blendingIntensityInput = document.getElementById('blendingIntensity');
 const searchRadiusInput = document.getElementById('searchRadius');
 const affectedAreaInput = document.getElementById('affectedArea');
-const context = canvas.getContext('2d');
 const cursor = document.getElementById('cursor');
 
 let image = new Image();
@@ -467,8 +466,8 @@ function handleImageUpload(event) {
             image.onload = function () {
                 canvas.width = image.width;
                 canvas.height = image.height;
-                context.drawImage(image, 0, 0);
-                canvasData = context.getImageData(0, 0, canvas.width, canvas.height);
+                gl.drawImage(image, 0, 0);
+                canvasData = gl.getImageData(0, 0, canvas.width, canvas.height);
             }
             image.src = e.target.result;
         }
@@ -497,14 +496,14 @@ function handleCanvasClick(event) {
 
 function inpaintSpot(x, y) {
     const radius = cursorSize / 2;
-    const imageData = context.getImageData(x - radius, y - radius, radius * 2, radius * 2);
+    const imageData = gl.getImageData(x - radius, y - radius, radius * 2, radius * 2);
     const data = imageData.data;
 
     const patchSize = radius * 2;
     const similarPatch = findBestPatch(x, y, patchSize);
     if (similarPatch) {
         advancedBlendPatches(data, similarPatch.data, radius, blendingIntensity, affectedArea);
-        context.putImageData(imageData, x - radius, y - radius);
+        gl.putImageData(imageData, x - radius, y - radius);
     }
 }
 
@@ -535,7 +534,7 @@ function extractPatchData(x, y, size) {
     const startY = Math.max(0, y);
     const endX = Math.min(canvas.width, x + size);
     const endY = Math.min(canvas.height, y + size);
-    return context.getImageData(startX, startY, endX - startX, endY - startY).data;
+    return gl.getImageData(startX, startY, endX - startX, endY - startY).data;
 }
 
 function computePatchScore(data) {
