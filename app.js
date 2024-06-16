@@ -422,7 +422,6 @@ const cursorSizeInput = document.getElementById('cursorSize');
 const blendingIntensityInput = document.getElementById('blendingIntensity');
 const searchRadiusInput = document.getElementById('searchRadius');
 const affectedAreaInput = document.getElementById('affectedArea');
-const canvas = document.getElementById('canvas');
 const context = canvas.getContext('2d');
 const cursor = document.getElementById('cursor');
 
