@@ -3,74 +3,32 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WebGL Image Editor</title>
+    <title>Image Editor</title>
     <style>
-        #canvas {
-            width: 100%;
-            height: auto;
-            border: 1px solid black;
-        }
-        .frame {
+        /* Style for the cursor */
+        .cursor {
             position: absolute;
-            border: 1px dashed black;
+            background-color: rgba(255, 255, 255, 0.5);
+            border: 1px solid #000;
+            border-radius: 50%;
+            pointer-events: none;
             display: none;
         }
-        .handle {
-            position: absolute;
-            width: 20px;
-            height: 20px;
-            background-color: black;
-        }
-        .handle.tl { top: -10px; left: -10px; cursor: nwse-resize; }
-        .handle.tr { top: -10px; right: -10px; cursor: nesw-resize; }
-        .handle.bl { bottom: -10px; left: -10px; cursor: nesw-resize; }
-        .handle.br { bottom: -10px; right: -10px; cursor: nwse-resize; }
-        .handle.rotate { top: -30px; left: 50%; transform: translateX(-50%); cursor: grab; }
     </style>
 </head>
 <body>
-    <h1>WebGL Image Editor</h1>
-    <input type="file" id="upload" accept="image/*">
-    <button id="move">Move</button>
+    <input type="file" id="upload">
+    <button id="healToolButton">Healing Spot Tool</button>
+    <label for="cursorSize">Cursor Size:</label>
+    <input type="range" id="cursorSize" min="5" max="100" value="20">
+    <label for="blendingIntensity">Blending Intensity:</label>
+    <input type="range" id="blendingIntensity" min="0.1" max="2" step="0.1" value="1">
+    <label for="searchRadius">Search Radius:</label>
+    <input type="range" id="searchRadius" min="10" max="100" value="30">
+    <label for="affectedArea">Affected Area:</label>
+    <input type="range" id="affectedArea" min="0.1" max="1" step="0.1" value="0.5">
     <canvas id="canvas"></canvas>
-    <div class="frame" id="frame">
-        <div class="handle tl"></div>
-        <div class="handle tr"></div>
-        <div class="handle bl"></div>
-        <div class="handle br"></div>
-        <div class="handle rotate"></div>
-    </div>
-    <div>
-        <label for="brightness">Brightness</label>
-        <input type="range" id="brightness" min="-1" max="1" step="0.01" value="0">
-    </div>
-    <div>
-        <label for="contrast">Contrast</label>
-        <input type="range" id="contrast" min="0" max="2" step="0.01" value="1">
-    </div>
-    <div>
-        <label for="saturation">Saturation</label>
-        <input type="range" id="saturation" min="0" max="2" step="0.01" value="1">
-    </div>
-    <div>
-        <label for="hue">Hue Rotation</label>
-        <input type="range" id="hue" min="0" max="360" step="1" value="0">
-    </div>
-    <div>
-        <label for="filter">Filter</label>
-        <select id="filter">
-            <option value="none">None</option>
-            <option value="sharpen">Sharpen</option>
-            <option value="edge-detect">Edge Detect</option>
-            <option value="blur">Blur</option>
-            <option value="emboss">Emboss</option>
-        </select>
-    </div>
-    <div class="property-display">
-        <p>Width: <span id="object-width"></span></p>
-        <p>Height: <span id="object-height"></span></p>
-        <p>Angle: <span id="object-angle"></span></p>
-    </div>
+    <div id="cursor" class="cursor"></div>
     <script src="app.js"></script>
 </body>
 </html>
