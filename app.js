@@ -83,6 +83,8 @@ function setupWebGL(image) {
         gl.useProgram(program);
         setupBuffers();
         render();
+    } else {
+        console.error('Failed to create WebGL program.');
     }
 }
 
@@ -168,6 +170,12 @@ function updateFilters() {
 }
 
 function render() {
+    if (!program) {
+        console.error('No WebGL program available.');
+        return;
+    }
+
+    gl.useProgram(program);
     gl.clear(gl.COLOR_BUFFER_BIT);
     gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight);
     gl.bindTexture(gl.TEXTURE_2D, imageTexture);
