@@ -8,6 +8,8 @@ document.getElementById('move').addEventListener('click', startMoveMode);
 
 const canvas = document.getElementById('canvas');
 const gl = canvas.getContext('webgl');
+const frame = document.getElementById('frame');
+const handles = document.querySelectorAll('.handle');
 
 let imageTexture;
 let program;
@@ -19,10 +21,14 @@ let filter = 'none';
 
 let isMoveMode = false;
 let isDragging = false;
+let isResizing = false;
+let isRotating = false;
 let initialMousePos = { x: 0, y: 0 };
 let objectPos = { x: 0, y: 0 };
 let objectScale = { x: 1, y: 1 };
 let objectAngle = 0;
+let startDistance = 0;
+let startAngle = 0;
 
 const kernels = {
     none: [
@@ -138,6 +144,7 @@ function setupBuffers() {
     const positionBuffer = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
     gl.bufferData(gl.ARRAY_BUFFER, positions, gl.STATIC_DRAW);
+
     const positionLocation = gl.getAttribLocation(program, 'a_position');
     gl.enableVertexAttribArray(positionLocation);
     gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, 0, 0);
@@ -145,6 +152,7 @@ function setupBuffers() {
     const texCoordBuffer = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, texCoordBuffer);
     gl.bufferData(gl.ARRAY_BUFFER, texCoords, gl.STATIC_DRAW);
+
     const texCoordLocation = gl.getAttribLocation(program, 'a_texCoord');
     gl.enableVertexAttribArray(texCoordLocation);
     gl.vertexAttribPointer(texCoordLocation, 2, gl.FLOAT, false, 0, 0);
@@ -187,31 +195,88 @@ function render() {
 
 function startMoveMode() {
     isMoveMode = true;
+    updateFrame();
 }
 
-canvas.addEventListener('mousedown', (e) => {
+function updateFrame() {
+    frame.style.display = 'block';
+    const frameSize = 100;
+    const centerX = canvas.width / 2 + objectPos.x * canvas.width;
+    const centerY = canvas.height / 2 - objectPos.y * canvas.height;
+    frame.style.width = `${frameSize}px`;
+    frame.style.height = `${frameSize}px`;
+    frame.style.left = `${centerX - frameSize / 2}px`;
+    frame.style.top = `${centerY - frameSize / 2}px`;
+    frame.style.transform = `rotate(${objectAngle}deg)`;
+}
+
+canvas.addEventListener('touchstart', (e) => {
     if (isMoveMode) {
-        isDragging = true;
-        initialMousePos.x = e.clientX;
-        initialMousePos.y = e.clientY;
+        const touch = e.touches[0];
+        initialMousePos.x = touch.clientX;
+        initialMousePos.y = touch.clientY;
     }
 });
 
-canvas.addEventListener('mousemove', (e) => {
-    if (isDragging) {
-        const dx = e.clientX - initialMousePos.x;
-        const dy = e.clientY - initialMousePos.y;
+canvas.addEventListener('touchmove', (e) => {
+    if (isMoveMode) {
+        const touch = e.touches[0];
+        const dx = touch.clientX - initialMousePos.x;
+        const dy = touch.clientY - initialMousePos.y;
         objectPos.x += dx / canvas.width;
         objectPos.y -= dy / canvas.height;
-        initialMousePos.x = e.clientX;
-        initialMousePos.y = e.clientY;
+        initialMousePos.x = touch.clientX;
+        initialMousePos.y = touch.clientY;
         render();
+        updateFrame();
     }
 });
 
-canvas.addEventListener('mouseup', () => {
-    isDragging = false;
+canvas.addEventListener('touchend', () => {
     isMoveMode = false;
+});
+
+handles.forEach(handle => {
+    handle.addEventListener('touchstart', (e) => {
+        e.stopPropagation();
+        const touch = e.touches[0];
+        initialMousePos.x = touch.clientX;
+        initialMousePos.y = touch.clientY;
+        if (handle.classList.contains('rotate')) {
+            isRotating = true;
+            startAngle = objectAngle;
+        } else {
+            isResizing = true;
+            startDistance = Math.hypot(initialMousePos.x - canvas.width / 2, initialMousePos.y - canvas.height / 2);
+        }
+    });
+
+    handle.addEventListener('touchmove', (e) => {
+        const touch = e.touches[0];
+        const dx = touch.clientX - initialMousePos.x;
+        const dy = touch.clientY - initialMousePos.y;
+
+        if (isResizing) {
+            const currentDistance = Math.hypot(touch.clientX - canvas.width / 2, touch.clientY - canvas.height / 2);
+            const scale = currentDistance / startDistance;
+            objectScale.x *= scale;
+            objectScale.y *= scale;
+            startDistance = currentDistance;
+        }
+
+        if (isRotating) {
+            const angle = Math.atan2(dy, dx);
+            objectAngle = startAngle + (angle * 180) / Math.PI;
+        }
+
+        render();
+        updateFrame();
+    });
+
+    handle.addEventListener('touchend', () => {
+        isResizing = false;
+        isRotating = false;
+    });
 });
 
 const vertexShaderSource = `
@@ -265,3 +330,5 @@ const fragmentShaderSource = `
         gl_FragColor = color;
     }
 `;
+
+render();
