@@ -3,6 +3,7 @@ document.getElementById('brightness').addEventListener('input', updateFilters);
 document.getElementById('contrast').addEventListener('input', updateFilters);
 document.getElementById('saturation').addEventListener('input', updateFilters);
 document.getElementById('hue').addEventListener('input', updateFilters);
+document.getElementById('filter').addEventListener('change', updateFilters);
 
 const canvas = document.getElementById('canvas');
 const gl = canvas.getContext('webgl');
@@ -13,6 +14,35 @@ let brightness = 0;
 let contrast = 1;
 let saturation = 1;
 let hue = 0;
+let filter = 'none';
+
+const kernels = {
+    none: [
+        0, 0, 0,
+        0, 1, 0,
+        0, 0, 0
+    ],
+    sharpen: [
+        0, -1, 0,
+        -1, 5, -1,
+        0, -1, 0
+    ],
+    blur: [
+        1/9, 1/9, 1/9,
+        1/9, 1/9, 1/9,
+        1/9, 1/9, 1/9
+    ],
+    edge-detect: [
+        -1, -1, -1,
+        -1, 8, -1,
+        -1, -1, -1
+    ],
+    emboss: [
+        -2, -1, 0,
+        -1, 1, 1,
+        0, 1, 2
+    ]
+};
 
 function handleImageUpload(event) {
     const file = event.target.files[0];
@@ -114,6 +144,7 @@ function updateFilters() {
     contrast = parseFloat(document.getElementById('contrast').value);
     saturation = parseFloat(document.getElementById('saturation').value);
     hue = parseFloat(document.getElementById('hue').value);
+    filter = document.getElementById('filter').value;
     render();
 }
 
@@ -126,6 +157,7 @@ function render() {
     gl.uniform1f(gl.getUniformLocation(program, 'u_contrast'), contrast);
     gl.uniform1f(gl.getUniformLocation(program, 'u_saturation'), saturation);
     gl.uniform1f(gl.getUniformLocation(program, 'u_hue'), hue);
+    gl.uniformMatrix3fv(gl.getUniformLocation(program, 'u_kernel'), false, new Float32Array(kernels[filter]));
 
     gl.drawArrays(gl.TRIANGLES, 0, 6);
 }
@@ -147,6 +179,7 @@ const fragmentShaderSource = `
     uniform float u_contrast;
     uniform float u_saturation;
     uniform float u_hue;
+    uniform mat3 u_kernel;
     varying vec2 v_texCoord;
 
     vec3 adjustHue(vec3 color, float hue) {
@@ -162,7 +195,14 @@ const fragmentShaderSource = `
     }
 
     void main() {
-        vec4 color = texture2D(u_image, v_texCoord);
+        vec2 onePixel = vec2(1.0) / vec2(textureSize(u_image, 0));
+        vec4 color = vec4(0.0);
+        for (int i = 0; i < 3; i++) {
+            for (int j = 0; j < 3; j++) {
+                vec2 offset = vec2(float(i - 1), float(j - 1)) * onePixel;
+                color += texture2D(u_image, v_texCoord + offset) * u_kernel[i][j];
+            }
+        }
         color.rgb += u_brightness;
         color.rgb = ((color.rgb - 0.5) * max(u_contrast, 0.0)) + 0.5;
         float grey = dot(color.rgb, vec3(0.3, 0.59, 0.11));
