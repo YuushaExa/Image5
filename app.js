@@ -2,6 +2,7 @@ document.getElementById('upload').addEventListener('change', handleImageUpload);
 document.getElementById('brightness').addEventListener('input', updateFilters);
 document.getElementById('contrast').addEventListener('input', updateFilters);
 document.getElementById('saturation').addEventListener('input', updateFilters);
+document.getElementById('hue').addEventListener('input', updateFilters);
 
 const canvas = document.getElementById('canvas');
 const gl = canvas.getContext('webgl');
@@ -11,6 +12,7 @@ let program;
 let brightness = 0;
 let contrast = 1;
 let saturation = 1;
+let hue = 0;
 
 function handleImageUpload(event) {
     const file = event.target.files[0];
@@ -40,6 +42,8 @@ function setupWebGL(image) {
 function createTexture(gl, image) {
     const texture = gl.createTexture();
     gl.bindTexture(gl.TEXTURE_2D, texture);
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true); // Flip the image's Y axis
+
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
     
     // Set texture parameters for NPOT textures
@@ -109,6 +113,7 @@ function updateFilters() {
     brightness = parseFloat(document.getElementById('brightness').value);
     contrast = parseFloat(document.getElementById('contrast').value);
     saturation = parseFloat(document.getElementById('saturation').value);
+    hue = parseFloat(document.getElementById('hue').value);
     render();
 }
 
@@ -120,6 +125,7 @@ function render() {
     gl.uniform1f(gl.getUniformLocation(program, 'u_brightness'), brightness);
     gl.uniform1f(gl.getUniformLocation(program, 'u_contrast'), contrast);
     gl.uniform1f(gl.getUniformLocation(program, 'u_saturation'), saturation);
+    gl.uniform1f(gl.getUniformLocation(program, 'u_hue'), hue);
 
     gl.drawArrays(gl.TRIANGLES, 0, 6);
 }
@@ -140,13 +146,28 @@ const fragmentShaderSource = `
     uniform float u_brightness;
     uniform float u_contrast;
     uniform float u_saturation;
+    uniform float u_hue;
     varying vec2 v_texCoord;
+
+    vec3 adjustHue(vec3 color, float hue) {
+        float angle = hue * 3.14159265 / 180.0;
+        float cosA = cos(angle);
+        float sinA = sin(angle);
+        mat3 hueRotation = mat3(
+            vec3(0.299, 0.587, 0.114) + vec3(0.701, -0.587, -0.114) * cosA + vec3(0.168, -0.331, 1.273) * sinA,
+            vec3(0.299, 0.587, 0.114) + vec3(-0.299, 0.413, -0.114) * cosA + vec3(0.328, 0.259, -1.328) * sinA,
+            vec3(0.299, 0.587, 0.114) + vec3(-0.3, -0.588, 0.886) * cosA + vec3(-1.496, 1.549, 1.283) * sinA
+        );
+        return color * hueRotation;
+    }
+
     void main() {
         vec4 color = texture2D(u_image, v_texCoord);
         color.rgb += u_brightness;
         color.rgb = ((color.rgb - 0.5) * max(u_contrast, 0.0)) + 0.5;
         float grey = dot(color.rgb, vec3(0.3, 0.59, 0.11));
         color.rgb = mix(vec3(grey), color.rgb, u_saturation);
+        color.rgb = adjustHue(color.rgb, u_hue);
         gl_FragColor = color;
     }
 `;
