@@ -6,7 +6,7 @@ document.getElementById('hue').addEventListener('input', updateFilters);
 document.getElementById('filter').addEventListener('change', updateFilters);
 
 const canvas = document.getElementById('canvas');
-const gl = canvas.getContext('webgl');
+const gl = canvas.getContext('webgl2');
 
 let imageTexture;
 let program;
@@ -152,13 +152,12 @@ function render() {
     gl.clear(gl.COLOR_BUFFER_BIT);
     gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight);
     gl.bindTexture(gl.TEXTURE_2D, imageTexture);
-
+    
     gl.uniform1f(gl.getUniformLocation(program, 'u_brightness'), brightness);
     gl.uniform1f(gl.getUniformLocation(program, 'u_contrast'), contrast);
     gl.uniform1f(gl.getUniformLocation(program, 'u_saturation'), saturation);
     gl.uniform1f(gl.getUniformLocation(program, 'u_hue'), hue);
     gl.uniformMatrix3fv(gl.getUniformLocation(program, 'u_kernel'), false, new Float32Array(kernels[filter]));
-    gl.uniform2f(gl.getUniformLocation(program, 'u_textureSize'), canvas.width, canvas.height);
 
     gl.drawArrays(gl.TRIANGLES, 0, 6);
 }
@@ -181,7 +180,6 @@ const fragmentShaderSource = `
     uniform float u_saturation;
     uniform float u_hue;
     uniform mat3 u_kernel;
-    uniform vec2 u_textureSize;
     varying vec2 v_texCoord;
 
     vec3 adjustHue(vec3 color, float hue) {
@@ -197,7 +195,7 @@ const fragmentShaderSource = `
     }
 
     void main() {
-        vec2 onePixel = vec2(1.0) / u_textureSize;
+        vec2 onePixel = vec2(1.0) / vec2(textureSize(u_image, 0));
         vec4 color = vec4(0.0);
         for (int i = 0; i < 3; i++) {
             for (int j = 0; j < 3; j++) {
