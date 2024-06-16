@@ -30,15 +30,24 @@ function handleImageUpload(event) {
 function setupWebGL(image) {
     imageTexture = createTexture(gl, image);
     program = createProgram(gl, vertexShaderSource, fragmentShaderSource);
-    gl.useProgram(program);
-    render();
+    if (program) {
+        gl.useProgram(program);
+        setupBuffers();
+        render();
+    }
 }
 
 function createTexture(gl, image) {
     const texture = gl.createTexture();
     gl.bindTexture(gl.TEXTURE_2D, texture);
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
-    gl.generateMipmap(gl.TEXTURE_2D);
+    
+    // Set texture parameters for NPOT textures
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+
     return texture;
 }
 
@@ -49,6 +58,12 @@ function createProgram(gl, vertexShaderSource, fragmentShaderSource) {
     gl.attachShader(program, vertexShader);
     gl.attachShader(program, fragmentShader);
     gl.linkProgram(program);
+
+    if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+        console.error('Error linking program:', gl.getProgramInfoLog(program));
+        gl.deleteProgram(program);
+        return null;
+    }
     return program;
 }
 
@@ -57,11 +72,37 @@ function compileShader(gl, type, source) {
     gl.shaderSource(shader, source);
     gl.compileShader(shader);
     if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-        console.error('Error compiling shader:', gl.getShaderInfoLog(shader));
+        console.error(`Error compiling ${type === gl.VERTEX_SHADER ? 'vertex' : 'fragment'} shader:`, gl.getShaderInfoLog(shader));
         gl.deleteShader(shader);
         return null;
     }
     return shader;
+}
+
+function setupBuffers() {
+    const positions = new Float32Array([
+        -1, -1,  1, -1,  -1, 1,
+        -1,  1,  1, -1,  1, 1
+    ]);
+
+    const texCoords = new Float32Array([
+        0, 0,  1, 0,  0, 1,
+        0, 1,  1, 0,  1, 1
+    ]);
+
+    const positionBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, positions, gl.STATIC_DRAW);
+    const positionLocation = gl.getAttribLocation(program, 'a_position');
+    gl.enableVertexAttribArray(positionLocation);
+    gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, 0, 0);
+
+    const texCoordBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, texCoordBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, texCoords, gl.STATIC_DRAW);
+    const texCoordLocation = gl.getAttribLocation(program, 'a_texCoord');
+    gl.enableVertexAttribArray(texCoordLocation);
+    gl.vertexAttribPointer(texCoordLocation, 2, gl.FLOAT, false, 0, 0);
 }
 
 function updateFilters() {
@@ -108,31 +149,3 @@ const fragmentShaderSource = `
         gl_FragColor = color;
     }
 `;
-
-const positions = new Float32Array([
-    -1, -1,  1, -1,  -1, 1,
-    -1,  1,  1, -1,  1, 1
-]);
-
-const texCoords = new Float32Array([
-    0, 0,  1, 0,  0, 1,
-    0, 1,  1, 0,  1, 1
-]);
-
-const positionBuffer = gl.createBuffer();
-gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
-gl.bufferData(gl.ARRAY_BUFFER, positions, gl.STATIC_DRAW);
-
-const texCoordBuffer = gl.createBuffer();
-gl.bindBuffer(gl.ARRAY_BUFFER, texCoordBuffer);
-gl.bufferData(gl.ARRAY_BUFFER, texCoords, gl.STATIC_DRAW);
-
-gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
-const positionLocation = gl.getAttribLocation(program, 'a_position');
-gl.enableVertexAttribArray(positionLocation);
-gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, 0, 0);
-
-gl.bindBuffer(gl.ARRAY_BUFFER, texCoordBuffer);
-const texCoordLocation = gl.getAttribLocation(program, 'a_texCoord');
-gl.enableVertexAttribArray(texCoordLocation);
-gl.vertexAttribPointer(texCoordLocation, 2, gl.FLOAT, false, 0, 0);
