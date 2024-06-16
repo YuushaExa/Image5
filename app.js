@@ -224,7 +224,7 @@ function updateFrame() {
     frame.style.transform = `rotate(${objectAngle}deg)`;
 }
 
-canvas.addEventListener('mousedown', (e) => {
+frame.addEventListener('mousedown', (e) => {
     if (isMoveMode) {
         initialMousePos.x = e.clientX;
         initialMousePos.y = e.clientY;
@@ -232,7 +232,7 @@ canvas.addEventListener('mousedown', (e) => {
     }
 });
 
-canvas.addEventListener('mousemove', (e) => {
+frame.addEventListener('mousemove', (e) => {
     if (isMoveMode && isDragging) {
         const dx = e.clientX - initialMousePos.x;
         const dy = e.clientY - initialMousePos.y;
@@ -245,11 +245,11 @@ canvas.addEventListener('mousemove', (e) => {
     }
 });
 
-canvas.addEventListener('mouseup', () => {
+frame.addEventListener('mouseup', () => {
     isDragging = false;
 });
 
-canvas.addEventListener('touchstart', (e) => {
+frame.addEventListener('touchstart', (e) => {
     if (isMoveMode) {
         const touch = e.touches[0];
         initialMousePos.x = touch.clientX;
@@ -258,7 +258,7 @@ canvas.addEventListener('touchstart', (e) => {
     }
 });
 
-canvas.addEventListener('touchmove', (e) => {
+frame.addEventListener('touchmove', (e) => {
     if (isMoveMode && isDragging) {
         const touch = e.touches[0];
         const dx = touch.clientX - initialMousePos.x;
@@ -272,7 +272,7 @@ canvas.addEventListener('touchmove', (e) => {
     }
 });
 
-canvas.addEventListener('touchend', () => {
+frame.addEventListener('touchend', () => {
     isDragging = false;
 });
 
