@@ -25,7 +25,7 @@ let isResizing = false;
 let isRotating = false;
 let initialMousePos = { x: 0, y: 0 };
 let objectPos = { x: 0, y: 0 };
-let objectScale = { x: 1, y: 1 };
+let objectSize = { width: 1, height: 1 };
 let objectAngle = 0;
 let startDistance = 0;
 let startAngle = 0;
@@ -66,6 +66,8 @@ function handleImageUpload(event) {
         img.onload = function() {
             canvas.width = img.width;
             canvas.height = img.height;
+            objectSize.width = img.width;
+            objectSize.height = img.height;
             document.getElementById('object-width').textContent = img.width;
             document.getElementById('object-height').textContent = img.height;
             document.getElementById('object-angle').textContent = '0'; // Assume 0 for simplicity
@@ -192,8 +194,8 @@ function render() {
     const cos = Math.cos(angleInRadians);
     const sin = Math.sin(angleInRadians);
     const transformMatrix = new Float32Array([
-        objectScale.x * cos, objectScale.x * sin, 0,
-        -objectScale.y * sin, objectScale.y * cos, 0,
+        objectSize.width * cos / canvas.width, objectSize.width * sin / canvas.height, 0,
+        -objectSize.height * sin / canvas.width, objectSize.height * cos / canvas.height, 0,
         objectPos.x, objectPos.y, 1
     ]);
     gl.uniformMatrix3fv(gl.getUniformLocation(program, 'u_transform'), false, transformMatrix);
@@ -252,11 +254,12 @@ canvas.addEventListener('touchstart', (e) => {
         const touch = e.touches[0];
         initialMousePos.x = touch.clientX;
         initialMousePos.y = touch.clientY;
+        isDragging = true;
     }
 });
 
 canvas.addEventListener('touchmove', (e) => {
-    if (isMoveMode) {
+    if (isMoveMode && isDragging) {
         const touch = e.touches[0];
         const dx = touch.clientX - initialMousePos.x;
         const dy = touch.clientY - initialMousePos.y;
@@ -295,8 +298,8 @@ handles.forEach(handle => {
             if (isResizing) {
                 const currentDistance = Math.hypot(e.clientX - canvas.width / 2, e.clientY - canvas.height / 2);
                 const scale = currentDistance / startDistance;
-                objectScale.x *= scale;
-                objectScale.y *= scale;
+                objectSize.width *= scale;
+                objectSize.height *= scale;
                 startDistance = currentDistance;
             }
 
@@ -338,8 +341,8 @@ handles.forEach(handle => {
             if (isResizing) {
                 const currentDistance = Math.hypot(touch.clientX - canvas.width / 2, touch.clientY - canvas.height / 2);
                 const scale = currentDistance / startDistance;
-                objectScale.x *= scale;
-                objectScale.y *= scale;
+                objectSize.width *= scale;
+                objectSize.height *= scale;
                 startDistance = currentDistance;
             }
 
