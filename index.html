@@ -10,9 +10,22 @@
             height: auto;
             border: 1px solid black;
         }
-        .property-display {
-            margin-top: 10px;
+        .frame {
+            position: absolute;
+            border: 1px dashed black;
+            display: none;
         }
+        .handle {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            background-color: black;
+        }
+        .handle.tl { top: -10px; left: -10px; cursor: nwse-resize; }
+        .handle.tr { top: -10px; right: -10px; cursor: nesw-resize; }
+        .handle.bl { bottom: -10px; left: -10px; cursor: nesw-resize; }
+        .handle.br { bottom: -10px; right: -10px; cursor: nwse-resize; }
+        .handle.rotate { top: -30px; left: 50%; transform: translateX(-50%); cursor: grab; }
     </style>
 </head>
 <body>
@@ -20,6 +33,13 @@
     <input type="file" id="upload" accept="image/*">
     <button id="move">Move</button>
     <canvas id="canvas"></canvas>
+    <div class="frame" id="frame">
+        <div class="handle tl"></div>
+        <div class="handle tr"></div>
+        <div class="handle bl"></div>
+        <div class="handle br"></div>
+        <div class="handle rotate"></div>
+    </div>
     <div>
         <label for="brightness">Brightness</label>
         <input type="range" id="brightness" min="-1" max="1" step="0.01" value="0">
@@ -54,3 +74,4 @@
     <script src="app.js"></script>
 </body>
 </html>
+ 
