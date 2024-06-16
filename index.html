@@ -10,11 +10,15 @@
             height: auto;
             border: 1px solid black;
         }
+        .property-display {
+            margin-top: 10px;
+        }
     </style>
 </head>
 <body>
     <h1>WebGL Image Editor</h1>
     <input type="file" id="upload" accept="image/*">
+    <button id="move">Move</button>
     <canvas id="canvas"></canvas>
     <div>
         <label for="brightness">Brightness</label>
@@ -41,6 +45,11 @@
             <option value="blur">Blur</option>
             <option value="emboss">Emboss</option>
         </select>
+    </div>
+    <div class="property-display">
+        <p>Width: <span id="object-width"></span></p>
+        <p>Height: <span id="object-height"></span></p>
+        <p>Angle: <span id="object-angle"></span></p>
     </div>
     <script src="app.js"></script>
 </body>
