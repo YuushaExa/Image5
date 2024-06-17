@@ -60,9 +60,11 @@ function updateHandles(image) {
     rotateHandle.style.display = 'block';
 }
 
-canvas.addEventListener('mousedown', (e) => {
-    const mouseX = e.offsetX;
-    const mouseY = e.offsetY;
+// Handle both mouse and touch events
+function handleDown(e) {
+    e.preventDefault();
+    const mouseX = e.offsetX || e.touches[0].clientX - canvas.getBoundingClientRect().left;
+    const mouseY = e.offsetY || e.touches[0].clientY - canvas.getBoundingClientRect().top;
 
     for (let i = 0; i < images.length; i++) {
         if (isInSelection(images[i], mouseX, mouseY)) {
@@ -82,13 +84,14 @@ canvas.addEventListener('mousedown', (e) => {
             isDragging = true;
         }
     }
-});
+}
 
-document.addEventListener('mousemove', (e) => {
+function handleMove(e) {
+    e.preventDefault();
     if (selectedImageIndex === null) return;
-    
-    const mouseX = e.offsetX;
-    const mouseY = e.offsetY;
+
+    const mouseX = e.offsetX || e.touches[0].clientX - canvas.getBoundingClientRect().left;
+    const mouseY = e.offsetY || e.touches[0].clientY - canvas.getBoundingClientRect().top;
     const selectedImage = images[selectedImageIndex];
 
     if (isDragging) {
@@ -106,13 +109,23 @@ document.addEventListener('mousemove', (e) => {
         selectedImage.angle = angle * 180 / Math.PI;
         draw();
     }
-});
+}
 
-document.addEventListener('mouseup', () => {
+function handleUp() {
     isDragging = false;
     isResizing = false;
     isRotating = false;
-});
+}
+
+// Add mouse event listeners
+canvas.addEventListener('mousedown', handleDown);
+document.addEventListener('mousemove', handleMove);
+document.addEventListener('mouseup', handleUp);
+
+// Add touch event listeners
+canvas.addEventListener('touchstart', handleDown);
+document.addEventListener('touchmove', handleMove);
+document.addEventListener('touchend', handleUp);
 
 function isInSelection(image, x, y) {
     ctx.save();
