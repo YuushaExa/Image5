@@ -10,8 +10,12 @@ let selectedImageIndex = null;
 let isDragging = false;
 let isResizing = false;
 let isRotating = false;
+let startX = 0;
+let startY = 0;
 
-fileInput.addEventListener('change', (e) => {
+fileInput.addEventListener('change', handleFileSelect);
+
+function handleFileSelect(e) {
     const files = e.target.files;
     for (let file of files) {
         const image = new Image();
@@ -28,7 +32,7 @@ fileInput.addEventListener('change', (e) => {
             draw();
         };
     }
-});
+}
 
 function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -60,72 +64,61 @@ function updateHandles(image) {
     rotateHandle.style.display = 'block';
 }
 
-// Handle both mouse and touch events
-function handleDown(e) {
+function handleMouseDownOrTouchStart(e) {
     e.preventDefault();
     const mouseX = e.offsetX || e.touches[0].clientX - canvas.getBoundingClientRect().left;
     const mouseY = e.offsetY || e.touches[0].clientY - canvas.getBoundingClientRect().top;
 
-    for (let i = 0; i < images.length; i++) {
+    for (let i = images.length - 1; i >= 0; i--) {
         if (isInSelection(images[i], mouseX, mouseY)) {
             selectedImageIndex = i;
+            startX = mouseX - images[i].x;
+            startY = mouseY - images[i].y;
+            if (isInResizeHandle(images[i], mouseX, mouseY)) {
+                isResizing = true;
+            } else if (isInRotateHandle(images[i], mouseX, mouseY)) {
+                isRotating = true;
+            } else {
+                isDragging = true;
+            }
             draw();
-            break;
+            return;
         }
     }
+    selectedImageIndex = null;
+    draw();
+}
+
+function handleMouseMoveOrTouchMove(e) {
+    e.preventDefault();
+    const mouseX = e.offsetX || e.touches[0].clientX - canvas.getBoundingClientRect().left;
+    const mouseY = e.offsetY || e.touches[0].clientY - canvas.getBoundingClientRect().top;
 
     if (selectedImageIndex !== null) {
         const selectedImage = images[selectedImageIndex];
-        if (isInResizeHandle(selectedImage, mouseX, mouseY)) {
-            isResizing = true;
-        } else if (isInRotateHandle(selectedImage, mouseX, mouseY)) {
-            isRotating = true;
-        } else if (isInSelection(selectedImage, mouseX, mouseY)) {
-            isDragging = true;
+        if (isDragging) {
+            selectedImage.x = mouseX - startX;
+            selectedImage.y = mouseY - startY;
+            draw();
+        } else if (isResizing) {
+            selectedImage.width = mouseX - selectedImage.x;
+            selectedImage.height = mouseY - selectedImage.y;
+            draw();
+        } else if (isRotating) {
+            const centerX = selectedImage.x + selectedImage.width / 2;
+            const centerY = selectedImage.y + selectedImage.height / 2;
+            const angle = Math.atan2(mouseY - centerY, mouseX - centerX);
+            selectedImage.angle = angle * 180 / Math.PI;
+            draw();
         }
     }
 }
 
-function handleMove(e) {
-    e.preventDefault();
-    if (selectedImageIndex === null) return;
-
-    const mouseX = e.offsetX || e.touches[0].clientX - canvas.getBoundingClientRect().left;
-    const mouseY = e.offsetY || e.touches[0].clientY - canvas.getBoundingClientRect().top;
-    const selectedImage = images[selectedImageIndex];
-
-    if (isDragging) {
-        selectedImage.x = mouseX - selectedImage.width / 2;
-        selectedImage.y = mouseY - selectedImage.height / 2;
-        draw();
-    } else if (isResizing) {
-        selectedImage.width = mouseX - selectedImage.x;
-        selectedImage.height = mouseY - selectedImage.y;
-        draw();
-    } else if (isRotating) {
-        const centerX = selectedImage.x + selectedImage.width / 2;
-        const centerY = selectedImage.y + selectedImage.height / 2;
-        const angle = Math.atan2(mouseY - centerY, mouseX - centerX);
-        selectedImage.angle = angle * 180 / Math.PI;
-        draw();
-    }
-}
-
-function handleUp() {
+function handleMouseUpOrTouchEnd() {
     isDragging = false;
     isResizing = false;
     isRotating = false;
 }
-
-// Add mouse event listeners
-canvas.addEventListener('mousedown', handleDown);
-document.addEventListener('mousemove', handleMove);
-document.addEventListener('mouseup', handleUp);
-
-// Add touch event listeners
-canvas.addEventListener('touchstart', handleDown);
-document.addEventListener('touchmove', handleMove);
-document.addEventListener('touchend', handleUp);
 
 function isInSelection(image, x, y) {
     ctx.save();
@@ -153,3 +146,14 @@ function isInRotateHandle(image, x, y) {
     const handleY = image.y - 20;
     return x > handleX && x < handleX + 10 && y > handleY && y < handleY + 10;
 }
+
+// Event listeners for mouse
+canvas.addEventListener('mousedown', handleMouseDownOrTouchStart);
+document.addEventListener('mousemove', handleMouseMoveOrTouchMove);
+document.addEventListener('mouseup', handleMouseUpOrTouchEnd);
+
+// Event listeners for touch
+canvas.addEventListener('touchstart', handleMouseDownOrTouchStart);
+document.addEventListener('touchmove', handleMouseMoveOrTouchMove);
+document.addEventListener('touchend', handleMouseUpOrTouchEnd);
+ 
