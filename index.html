@@ -3,12 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Healing Spot Tool with Fabric.js</title>
+    <title>Healing Spot Tool</title>
     <style>
-        #canvas-container {
+        #canvas {
             border: 1px solid black;
             cursor: none;
-            position: relative;
         }
         .cursor {
             position: absolute;
@@ -22,6 +21,11 @@
 <body>
     <input type="file" id="upload" accept="image/*">
     <button id="healToolButton">Healing Spot Tool</button>
+    <label for="cursorType">Cursor Type:</label>
+    <select id="cursorType">
+        <option value="basic">Basic Cursor</option>
+        <option value="continuous">Continuous Selection</option>
+    </select>
     <label for="cursorSize">Cursor Size:</label>
     <input type="range" id="cursorSize" min="5" max="100" value="20">
     <label for="blendingIntensity">Blending Intensity:</label>
@@ -30,39 +34,52 @@
     <input type="range" id="searchRadius" min="10" max="100" value="30">
     <label for="affectedArea">Affected Area:</label>
     <input type="range" id="affectedArea" min="0.1" max="1" step="0.1" value="0.5">
-    <div id="canvas-container">
-        <canvas id="canvas"></canvas>
-        <div id="cursor" class="cursor"></div>
-    </div>
+    <label for="feathering">Feathering:</label>
+    <input type="range" id="feathering" min="0" max="1" step="0.1" value="0.5">
+    <canvas id="canvas"></canvas>
+    <div id="cursor" class="cursor"></div>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/460/fabric.min.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             const upload = document.getElementById('upload');
             const healToolButton = document.getElementById('healToolButton');
+            const cursorTypeInput = document.getElementById('cursorType');
             const cursorSizeInput = document.getElementById('cursorSize');
             const blendingIntensityInput = document.getElementById('blendingIntensity');
             const searchRadiusInput = document.getElementById('searchRadius');
             const affectedAreaInput = document.getElementById('affectedArea');
-            const canvasContainer = document.getElementById('canvas-container');
+            const featheringInput = document.getElementById('feathering');
+            const canvas = document.getElementById('canvas');
+            const context = canvas.getContext('2d');
             const cursor = document.getElementById('cursor');
-
-            const canvas = new fabric.Canvas('canvas', { selection: false });
-            canvasContainer.style.width = canvas.getWidth() + 'px';
-            canvasContainer.style.height = canvas.getHeight() + 'px';
-
+            
             let image = new Image();
             let usingHealTool = false;
             let cursorSize = parseInt(cursorSizeInput.value, 10);
             let blendingIntensity = parseFloat(blendingIntensityInput.value);
             let searchRadius = parseInt(searchRadiusInput.value, 10);
             let affectedArea = parseFloat(affectedAreaInput.value);
+            let feathering = parseFloat(featheringInput.value);
+            let isMouseDown = false;
             let canvasData = null;
+            let cursorType = cursorTypeInput.value;
+
+            cursor.style.width = cursor.style.height = `${cursorSize}px`; // Set initial cursor size
 
             upload.addEventListener('change', handleImageUpload);
             healToolButton.addEventListener('click', () => {
                 usingHealTool = !usingHealTool;
                 cursor.style.display = usingHealTool ? 'block' : 'none';
+                if (usingHealTool) {
+                    cursor.style.width = cursor.style.height = `${cursorSize}px`; // Ensure cursor size is updated when tool is activated
+                }
+            });
+
+            cursorTypeInput.addEventListener('change', () => {
+                cursorType = cursorTypeInput.value;
+                if (cursorType === 'basic') {
+                    cursor.style.display = usingHealTool ? 'block' : 'none';
+                }
             });
 
             cursorSizeInput.addEventListener('input', () => {
@@ -82,8 +99,13 @@
                 affectedArea = parseFloat(affectedAreaInput.value);
             });
 
-            canvasContainer.addEventListener('mousemove', handleMouseMove);
-            canvasContainer.addEventListener('click', handleCanvasClick);
+            featheringInput.addEventListener('input', () => {
+                feathering = parseFloat(featheringInput.value);
+            });
+
+            canvas.addEventListener('mousemove', handleMouseMove);
+            canvas.addEventListener('mousedown', handleMouseDown);
+            canvas.addEventListener('mouseup', handleMouseUp);
 
             function handleImageUpload(event) {
                 const file = event.target.files[0];
@@ -91,10 +113,10 @@
                     const reader = new FileReader();
                     reader.onload = function (e) {
                         image.onload = function () {
-                            canvas.setWidth(image.width);
-                            canvas.setHeight(image.height);
-                            canvas.setBackgroundImage(image.src, canvas.renderAll.bind(canvas));
-                            canvasData = canvas.getContext().getImageData(0, 0, canvas.width, canvas.height);
+                            canvas.width = image.width;
+                            canvas.height = image.height;
+                            context.drawImage(image, 0, 0);
+                            canvasData = context.getImageData(0, 0, canvas.width, canvas.height);
                         }
                         image.src = e.target.result;
                     }
@@ -104,54 +126,136 @@
 
             function handleMouseMove(event) {
                 if (usingHealTool) {
-                    const rect = canvasContainer.getBoundingClientRect();
+                    const rect = canvas.getBoundingClientRect();
                     const x = event.clientX - rect.left;
                     const y = event.clientY - rect.top;
-                    cursor.style.left = `${event.clientX- rect.left - cursorSize / 2}px`;
-                    cursor.style.top = `${event.clientY - rect.top - cursorSize / 2}px`;
+                    cursor.style.left = `${event.clientX - cursorSize / 2}px`;
+                    cursor.style.top = `${event.clientY - cursorSize / 2}px`;
+                    if (isMouseDown && cursorType === 'continuous') {
+                        inpaintSpot(x, y);
+                    }
                 }
             }
 
-            function handleCanvasClick(event) {
-                if (usingHealTool && canvasData) {
-                    const rect = canvasContainer.getBoundingClientRect();
+            function handleMouseDown(event) {
+                if (usingHealTool) {
+                    isMouseDown = true;
+                    const rect = canvas.getBoundingClientRect();
                     const x = event.clientX - rect.left;
                     const y = event.clientY - rect.top;
-                    const ctx = canvas.getContext();
+                    if (cursorType === 'basic') {
+                        inpaintSpot(x, y);
+                    }
+                }
+            }
 
-                    const startX = Math.max(0, x - cursorSize / 2);
-                    const startY = Math.max(0, y - cursorSize / 2);
-                    const endX = Math.min(canvas.width, x + cursorSize / 2);
-                    const endY = Math.min(canvas.height, y + cursorSize / 2);
+            function handleMouseUp() {
+                if (usingHealTool) {
+                    isMouseDown = false;
+                }
+            }
 
-                    const imageData = ctx.getImageData(startX, startY, endX - startX, endY - startY);
-                    const pixels = imageData.data;
+            function inpaintSpot(x, y) {
+                const radius = cursorSize / 2;
+                const imageData = context.getImageData(x - radius, y - radius, radius * 2, radius * 2);
+                const data = imageData.data;
 
-                    for (let i = 0; i < pixels.length; i += 4) {
-                        const r = pixels[i];
-                        const g = pixels[i + 1];
-                        const b = pixels[i + 2];
-                        const distance = Math.sqrt(Math.pow(r - 255, 2) + Math.pow(g - 255, 2) + Math.pow(b - 255, 2));
+                const patchSize = radius * 2;
+                const similarPatch = findBestPatch(x, y, patchSize);
+                if (similarPatch) {
+                    advancedBlendPatches(data, similarPatch.data, radius, blendingIntensity, affectedArea);
+                    context.putImageData(imageData, x - radius, y - radius);
+                }
+            }
 
-                        if (distance <= searchRadius) {
-                            const blendAmount = affectedArea * (1 - distance / searchRadius) * blendingIntensity;
+            function findBestPatch(x, y, size) {
+                let bestPatch = null;
+                let bestScore = Infinity;
 
-                            pixels[i] = blendAmount * 255 + (1 - blendAmount) * r;
-                            pixels[i + 1] = blendAmount * 255 + (1 - blendAmount) * g;
-                            pixels[i + 2] = blendAmount * 255 + (1 - blendAmount) * b;
+                for (let dx = -searchRadius; dx <= searchRadius; dx++) {
+                    for (let dy = -searchRadius; dy <= searchRadius; dy++) {
+                        if (x + dx < 0 || y + dy < 0 || x + dx + size >= canvas.width || y + dy + size >= canvas.height) {
+                            continue;
+                        }
+
+                        const patchData = extractPatchData(x + dx, y + dy, size);
+                        const score = computePatchScore(patchData);
+                        if (score < bestScore) {
+                            bestScore = score;
+                            bestPatch = { x: x + dx, y: y + dy, data: patchData };
                         }
                     }
+                }
 
-                    ctx.putImageData(imageData, startX, startY);
+                return bestPatch;
+            }
 
-                    const updatedImageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-                    const updatedPixels = updatedImageData.data;
+            function extractPatchData(x, y, size) {
+                const startX = Math.max(0, x);
+                const startY = Math.max(0, y);
+                const endX = Math.min(canvas.width, x + size);
+                const endY = Math.min(canvas.height, y + size);
+                return context.getImageData(startX, startY, endX - startX, endY - startY).data;
+            }
 
-                    for (let i = 0; i < pixels.length; i += 4) {
-                        canvasData.data[startX * 4 + i] = updatedPixels[i];
-                        canvasData.data[startX * 4 + i + 1] = updatedPixels[i + 1];
-                        canvasData.data[startX * 4 + i + 2] = updatedPixels[i + 2];
-                        canvasData.data[startX * 4 + i + 3] = updatedPixels[i + 3];
+            function computePatchScore(data) {
+                let r = 0, g = 0, b = 0, count = data.length / 4;
+                for (let i = 0; i < data.length; i += 4) {
+                    r += data[i];
+                    g += data[i + 1];
+                    b += data[i + 2];
+                }
+                r /= count;
+                g /= count;
+                b /= count;
+
+                let score = 0;
+                for (let i = 0; i < data.length; i += 4) {
+                    score += Math.abs(data[i] - r) + Math.abs(data[i + 1] - g) + Math.abs(data[i + 2] - b);
+                }
+
+                return score;
+            }
+
+            function advancedBlendPatches(sourceData, targetData, radius, intensity, affectedArea) {
+                const length = sourceData.length;
+                const sigma = radius / 3;
+                const gauss = (d) => Math.exp(-(d * d) / (2 * sigma * sigma));
+                const affectRadius = radius * affectedArea;
+
+                for (let i = 0; i < length; i += 4) {
+                    const dx = (i / 4) % (radius * 2) - radius;
+                    const dy = Math.floor((i / 4) / (radius * 2)) - radius;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+
+                    if (dist < affectRadius) {
+                        const weight = gauss(dist) * intensity;
+                        sourceData[i] = weight * targetData[i] + (1 - weight) * sourceData[i];
+                        sourceData[i + 1] = weight * targetData[i + 1] + (1 - weight) * sourceData[i + 1];
+                        sourceData[i + 2] = weight * targetData[i + 2] + (1 - weight) * sourceData[i + 2];
+                    }
+                }
+            }
+
+            function contentAwareFill(sourceData, targetData, radius, intensity) {
+                const length = sourceData.length;
+                const size = Math.sqrt(length / 4);
+
+                for (let i = 0; i < length; i += 4) {
+                    const dx = (i / 4) % (radius * 2) - radius;
+                    const dy = Math.floor((i / 4) / (radius * 2)) - radius;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+
+                    if (dist < radius) {
+                        const index = (dy + radius) * (radius * 2) + (dx + radius);
+                        const sourceIndex = 4 * index;
+                        const targetIndex = 4 * index;
+
+                        const weight = Math.exp(-dist * dist / (2 * radius * radius)) * intensity;
+
+                        sourceData[sourceIndex] = weight * targetData[targetIndex] + (1 - weight) * sourceData[sourceIndex];
+                        sourceData[sourceIndex + 1] = weight * targetData[targetIndex + 1] + (1 - weight) * sourceData[sourceIndex + 1];
+                        sourceData[sourceIndex + 2] = weight * targetData[targetIndex + 2] + (1 - weight) * sourceData[sourceIndex + 2];
                     }
                 }
             }
