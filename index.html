@@ -3,32 +3,159 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Canvas Selection</title>
+    <title>Healing Spot Tool with Fabric.js</title>
     <style>
-        canvas {
-            border: 1px solid #000;
+        #canvas-container {
+            border: 1px solid black;
+            cursor: none;
+            position: relative;
         }
-        .handle {
-            width: 10px;
-            height: 10px;
-            background: #fff;
-            border: 1px solid #000;
+        .cursor {
             position: absolute;
-            cursor: pointer;
-        }
-        .selection-box {
-            border: 1px dashed #000;
-            position: absolute;
+            border-radius: 50%;
+            border: 2px solid red;
             pointer-events: none;
+            display: none;
         }
     </style>
 </head>
 <body>
-    <input type="file" id="file-input" multiple>
-    <canvas id="canvas" width="800" height="600"></canvas>
-    <div id="selection-box" class="selection-box" style="display: none;"></div>
-    <div id="resize-handle" class="handle" style="display: none;"></div>
-    <div id="rotate-handle" class="handle" style="display: none;"></div>
-    <script src="app.js"></script>
+    <input type="file" id="upload" accept="image/*">
+    <button id="healToolButton">Healing Spot Tool</button>
+    <label for="cursorSize">Cursor Size:</label>
+    <input type="range" id="cursorSize" min="5" max="100" value="20">
+    <label for="blendingIntensity">Blending Intensity:</label>
+    <input type="range" id="blendingIntensity" min="0.1" max="2" step="0.1" value="1">
+    <label for="searchRadius">Search Radius:</label>
+    <input type="range" id="searchRadius" min="10" max="100" value="30">
+    <label for="affectedArea">Affected Area:</label>
+    <input type="range" id="affectedArea" min="0.1" max="1" step="0.1" value="0.5">
+    <div id="canvas-container">
+        <canvas id="canvas"></canvas>
+        <div id="cursor" class="cursor"></div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/4.7.0/fabric.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const upload = document.getElementById('upload');
+            const healToolButton = document.getElementById('healToolButton');
+            const cursorSizeInput = document.getElementById('cursorSize');
+            const blendingIntensityInput = document.getElementById('blendingIntensity');
+            const searchRadiusInput = document.getElementById('searchRadius');
+            const affectedAreaInput = document.getElementById('affectedArea');
+            const canvasContainer = document.getElementById('canvas-container');
+            const cursor = document.getElementById('cursor');
+
+            const canvas = new fabric.Canvas('canvas', { selection: false });
+            canvasContainer.style.width = canvas.getWidth() + 'px';
+            canvasContainer.style.height = canvas.getHeight() + 'px';
+
+            let image = new Image();
+            let usingHealTool = false;
+            let cursorSize = parseInt(cursorSizeInput.value, 10);
+            let blendingIntensity = parseFloat(blendingIntensityInput.value);
+            let searchRadius = parseInt(searchRadiusInput.value, 10);
+            let affectedArea = parseFloat(affectedAreaInput.value);
+            let canvasData = null;
+
+            upload.addEventListener('change', handleImageUpload);
+            healToolButton.addEventListener('click', () => {
+                usingHealTool = !usingHealTool;
+                cursor.style.display = usingHealTool ? 'block' : 'none';
+            });
+
+            cursorSizeInput.addEventListener('input', () => {
+                cursorSize = parseInt(cursorSizeInput.value, 10);
+                cursor.style.width = cursor.style.height = `${cursorSize}px`;
+            });
+
+            blendingIntensityInput.addEventListener('input', () => {
+                blendingIntensity = parseFloat(blendingIntensityInput.value);
+            });
+
+            searchRadiusInput.addEventListener('input', () => {
+                searchRadius = parseInt(searchRadiusInput.value, 10);
+            });
+
+            affectedAreaInput.addEventListener('input', () => {
+                affectedArea = parseFloat(affectedAreaInput.value);
+            });
+
+            canvasContainer.addEventListener('mousemove', handleMouseMove);
+            canvasContainer.addEventListener('click', handleCanvasClick);
+
+            function handleImageUpload(event) {
+                const file = event.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = function (e) {
+                        image.onload = function () {
+                            canvas.setWidth(image.width);
+                            canvas.setHeight(image.height);
+                            canvas.setBackgroundImage(image.src, canvas.renderAll.bind(canvas));
+                            canvasData = canvas.getContext().getImageData(0, 0, canvas.width, canvas.height);
+                        }
+                        image.src = e.target.result;
+                    }
+                    reader.readAsDataURL(file);
+                }
+            }
+
+            function handleMouseMove(event) {
+                if (usingHealTool) {
+                    const rect = canvasContainer.getBoundingClientRect();
+                    const x = event.clientX - rect.left;
+                    const y = event.clientY - rect.top;
+                    cursor.style.left = `${event.clientX- rect.left - cursorSize / 2}px`;
+                    cursor.style.top = `${event.clientY - rect.top - cursorSize / 2}px`;
+                }
+            }
+
+            function handleCanvasClick(event) {
+                if (usingHealTool && canvasData) {
+                    const rect = canvasContainer.getBoundingClientRect();
+                    const x = event.clientX - rect.left;
+                    const y = event.clientY - rect.top;
+                    const ctx = canvas.getContext();
+
+                    const startX = Math.max(0, x - cursorSize / 2);
+                    const startY = Math.max(0, y - cursorSize / 2);
+                    const endX = Math.min(canvas.width, x + cursorSize / 2);
+                    const endY = Math.min(canvas.height, y + cursorSize / 2);
+
+                    const imageData = ctx.getImageData(startX, startY, endX - startX, endY - startY);
+                    const pixels = imageData.data;
+
+                    for (let i = 0; i < pixels.length; i += 4) {
+                        const r = pixels[i];
+                        const g = pixels[i + 1];
+                        const b = pixels[i + 2];
+                        const distance = Math.sqrt(Math.pow(r - 255, 2) + Math.pow(g - 255, 2) + Math.pow(b - 255, 2));
+
+                        if (distance <= searchRadius) {
+                            const blendAmount = affectedArea * (1 - distance / searchRadius) * blendingIntensity;
+
+                            pixels[i] = blendAmount * 255 + (1 - blendAmount) * r;
+                            pixels[i + 1] = blendAmount * 255 + (1 - blendAmount) * g;
+                            pixels[i + 2] = blendAmount * 255 + (1 - blendAmount) * b;
+                        }
+                    }
+
+                    ctx.putImageData(imageData, startX, startY);
+
+                    const updatedImageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                    const updatedPixels = updatedImageData.data;
+
+                    for (let i = 0; i < pixels.length; i += 4) {
+                        canvasData.data[startX * 4 + i] = updatedPixels[i];
+                        canvasData.data[startX * 4 + i + 1] = updatedPixels[i + 1];
+                        canvasData.data[startX * 4 + i + 2] = updatedPixels[i + 2];
+                        canvasData.data[startX * 4 + i + 3] = updatedPixels[i + 3];
+                    }
+                }
+            }
+        });
+    </script>
 </body>
 </html>
