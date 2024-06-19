@@ -78,10 +78,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function healImage(event) {
         const pointer = canvas.getPointer(event.e);
-        const context = uploadedImage.getElement().getContext('2d');
-        inpaintSpot(pointer.x - uploadedImage.left, pointer.y - uploadedImage.top, context);
-        uploadedImage.setElement(uploadedImage.getElement());
-        canvas.renderAll();
+        if (uploadedImage && uploadedImage.getElement()) {
+            const context = uploadedImage.getElement().getContext('2d');
+            inpaintSpot(pointer.x - uploadedImage.left, pointer.y - uploadedImage.top, context);
+            uploadedImage.setElement(uploadedImage.getElement());
+            canvas.renderAll();
+        }
     }
 
     function inpaintSpot(x, y, context) {
