@@ -79,10 +79,25 @@ document.addEventListener('DOMContentLoaded', function() {
     function healImage(event) {
         const pointer = canvas.getPointer(event.e);
         if (uploadedImage && uploadedImage.getElement()) {
-            const context = uploadedImage.getElement().getContext('2d');
-            inpaintSpot(pointer.x - uploadedImage.left, pointer.y - uploadedImage.top, context);
-            uploadedImage.setElement(uploadedImage.getElement());
-            canvas.renderAll();
+            const imgElement = uploadedImage.getElement();
+            if (imgElement.nodeName === 'IMG') {
+                // If it's an <img> element, create a new canvas to draw it
+                const tempCanvas = document.createElement('canvas');
+                tempCanvas.width = imgElement.width;
+                tempCanvas.height = imgElement.height;
+                const tempContext = tempCanvas.getContext('2d');
+                tempContext.drawImage(imgElement, 0, 0);
+
+                inpaintSpot(pointer.x - uploadedImage.left, pointer.y - uploadedImage.top, tempContext);
+                uploadedImage.setElement(tempCanvas); // Update the fabric.Image element
+                canvas.renderAll();
+            } else if (imgElement.nodeName === 'CANVAS') {
+                // If it's already a <canvas> element, use its context directly
+                const context = imgElement.getContext('2d');
+                inpaintSpot(pointer.x - uploadedImage.left, pointer.y - uploadedImage.top, context);
+                uploadedImage.setElement(imgElement); // Update the fabric.Image element
+                canvas.renderAll();
+            }
         }
     }
 
