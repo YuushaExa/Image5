@@ -95,7 +95,7 @@ const moveNPC = (npc) => {
     } else {
         // NPC reached the cashier, simulate buying
         setTimeout(() => {
-            buyItem(npc);
+            attemptToBuyItem(npc);
         }, 1000);
         return;
     }
@@ -115,9 +115,9 @@ const moveNPCBack = (npc) => {
     }
 };
 
-const buyItem = (npc) => {
-    const item = items.find(i => i.stock > 0);
-    if (item) {
+const attemptToBuyItem = (npc) => {
+    const item = getRandomItem();
+    if (item && Math.random() * 100 < item.demand) {
         money += item.price;
         item.stock--;
         item.sold++;
@@ -127,9 +127,18 @@ const buyItem = (npc) => {
         updateMoney();
         moveNPCBack(npc);
     } else {
-        logAction('No items left to sell');
+        logAction('NPC decided not to buy anything');
         moveNPCBack(npc);
     }
+};
+
+const getRandomItem = () => {
+    const availableItems = items.filter(item => item.stock > 0);
+    if (availableItems.length > 0) {
+        const randomIndex = Math.floor(Math.random() * availableItems.length);
+        return availableItems[randomIndex];
+    }
+    return null;
 };
 
 const logAction = (message) => {
@@ -149,9 +158,11 @@ const updateNPCs = () => {
 
 const restockItems = () => {
     items.forEach(item => {
+        money -= item.defaultPrice * (5 - item.stock);
         item.stock = 5;
     });
     renderItems();
+    updateMoney();
     logAction('All items restocked.');
 };
 
