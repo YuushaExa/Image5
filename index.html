@@ -3,22 +3,37 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tilemap Game</title>
-    <link rel="stylesheet" href="styles.css">
+    <title>Item Shop Game</title>
+    <style>
+        canvas {
+            border: 1px solid black;
+        }
+        ul {
+            list-style-type: none;
+            padding: 0;
+        }
+        li {
+            margin-bottom: 5px;
+        }
+    </style>
 </head>
 <body>
     <canvas id="gameCanvas" width="600" height="300"></canvas>
-    <div id="info">
-        <h2>Money: <span id="money">100</span></h2>
-        <h3>Items</h3>
-        <ul id="items">
-            <!-- Items for sale will be listed here -->
-        </ul>
+    <div>
         <h3>Log</h3>
-        <ul id="log">
-            <!-- Transaction logs will be listed here -->
-        </ul>
-        <button id="restock">Restock All Items</button>
+        <ul id="log"></ul>
+    </div>
+    <div>
+        <h3>Items</h3>
+        <ul id="items"></ul>
+        <button id="restock">Restock Items</button>
+    </div>
+    <div>
+        <h3>Shop Status</h3>
+        <p>Money: $<span id="money">100</span></p>
+        <p>Shop Reputation: <span id="reputation">100%</span></p>
+        <p>Town Level: <span id="townLevel">0</span></p>
+        <button id="upgradeTown">Upgrade Town</button>
     </div>
     <script src="script.js"></script>
 </body>
