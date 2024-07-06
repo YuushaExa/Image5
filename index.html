@@ -3,21 +3,23 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Image Editor</title>
+    <title>Tilemap Game</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <div class="container">
-        <canvas id="canvas"></canvas>
-        <div class="controls">
-            <input type="file" id="file-input" />
-            <button id="crop-btn">Crop</button>
-            <button id="rotate-btn">Rotate</button>
-            <button id="heal-btn">Heal</button>
-            <button id="download-btn">Download</button>
-        </div>
+    <canvas id="gameCanvas" width="600" height="300"></canvas>
+    <div id="info">
+        <h2>Money: <span id="money">100</span></h2>
+        <h3>Items</h3>
+        <ul id="items">
+            <!-- Items for sale will be listed here -->
+        </ul>
+        <h3>Log</h3>
+        <ul id="log">
+            <!-- Transaction logs will be listed here -->
+        </ul>
+        <button id="restock">Restock All Items</button>
     </div>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/460/fabric.min.js"></script>
-    <script src="app.js"></script>
+    <script src="script.js"></script>
 </body>
 </html>
