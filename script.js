@@ -3,9 +3,14 @@ const ctx = canvas.getContext('2d');
 const logElement = document.getElementById('log');
 const itemsElement = document.getElementById('items');
 const moneyElement = document.getElementById('money');
+const reputationElement = document.getElementById('reputation');
+const townLevelElement = document.getElementById('townLevel');
 const restockButton = document.getElementById('restock');
+const upgradeTownButton = document.getElementById('upgradeTown');
 let money = 100;
-let shopReputation = 100; // Starting reputation
+let shopReputation = 100;
+let townLevel = 0;
+let maxNPCs = 5;
 
 const tileSize = 30;
 const rows = 10;
@@ -30,9 +35,9 @@ const tileMap = [
 ];
 
 const items = [
-    { name: 'Potion', price: 10, defaultPrice: 10, stock: 5, sold: 0, demand: 100 },
-    { name: 'Sword', price: 50, defaultPrice: 50, stock: 2, sold: 0, demand: 100 },
-    { name: 'Shield', price: 30, defaultPrice: 30, stock: 3, sold: 0, demand: 100 }
+    { name: 'Potion', price: 10, defaultPrice: 10, stock: 5, sold: 0, demand: 100, effect: { hp: 100 } },
+    { name: 'Sword', price: 50, defaultPrice: 50, stock: 2, sold: 0, demand: 100, effect: { attack: 10 } },
+    { name: 'Shield', price: 30, defaultPrice: 30, stock: 3, sold: 0, demand: 100, effect: { defense: 5 } }
 ];
 
 const renderGrid = () => {
@@ -55,28 +60,33 @@ const renderItems = () => {
     itemsElement.innerHTML = '';
     items.forEach((item, index) => {
         const li = document.createElement('li');
-        li.innerHTML = `${item.name} - $${item.price} (Stock: ${item.stock}) <br> Demand: ${item.demand}%`;
-        const incPriceButton = document.createElement('button');
-        incPriceButton.textContent = '+';
-        incPriceButton.onclick = () => changePrice(index, 1);
-        const decPriceButton = document.createElement('button');
-        decPriceButton.textContent = '-';
-        decPriceButton.onclick = () => changePrice(index, -1);
-        li.appendChild(incPriceButton);
-        li.appendChild(decPriceButton);
+        const priceInput = document.createElement('input');
+        priceInput.type = 'number';
+        priceInput.value = item.price;
+        priceInput.onchange = () => changePrice(index, parseInt(priceInput.value));
+        li.innerHTML = `${item.name} - $`;
+        li.appendChild(priceInput);
+        li.innerHTML += ` (Stock: ${item.stock}) <br> Demand: ${item.demand}%`;
         itemsElement.appendChild(li);
     });
 };
 
 const createNPC = () => {
-    if (Math.random() * 100 < shopReputation) {
+    if (npcs.length < maxNPCs && Math.random() * 100 < shopReputation) {
         const npc = {
             position: { row: streetRow, col: 0 },
-            state: 'walkingToShop'
+            state: 'walkingToShop',
+            money: 100,
+            attack: getRandomStat(),
+            defense: getRandomStat(),
+            hp: 100,
+            equipment: { weapon: null, shield: null }
         };
         npcs.push(npc);
     }
 };
+
+const getRandomStat = () => Math.floor(Math.random() * 9) + 2;
 
 const moveNPC = (npc) => {
     const { row, col } = npc.position;
@@ -123,19 +133,36 @@ const moveNPCBack = (npc) => {
 
 const attemptToBuyItem = (npc) => {
     const item = getRandomItem();
-    if (item && Math.random() * 100 < item.demand) {
+    if (item && Math.random() * 100 < item.demand && npc.money >= item.price) {
         money += item.price;
+        npc.money -= item.price;
         item.stock--;
         item.sold++;
         logAction(`NPC bought ${item.name} for $${item.price}`);
         updateDemand(item);
+        equipItem(npc, item);
         renderItems();
         updateMoney();
         moveNPCBack(npc);
     } else {
         logAction('NPC decided not to buy anything');
         shopReputation = Math.max(10, shopReputation - 5); // Reduce reputation
+        updateReputation();
         moveNPCBack(npc);
+    }
+};
+
+const equipItem = (npc, item) => {
+    if (item.effect.hp) {
+        npc.hp += item.effect.hp;
+    }
+    if (item.effect.attack) {
+        npc.attack += item.effect.attack;
+        npc.equipment.weapon = item.name;
+    }
+    if (item.effect.defense) {
+        npc.defense += item.effect.defense;
+        npc.equipment.shield = item.name;
     }
 };
 
@@ -164,6 +191,14 @@ const updateMoney = () => {
     moneyElement.textContent = money;
 };
 
+const updateReputation = () => {
+    reputationElement.textContent = `${shopReputation}%`;
+};
+
+const updateTownLevel = () => {
+    townLevelElement.textContent = townLevel;
+};
+
 const updateNPCs = () => {
     npcs.forEach(npc => moveNPC(npc));
 };
@@ -178,21 +213,41 @@ const restockItems = () => {
     logAction('All items restocked.');
 };
 
-const changePrice = (index, delta) => {
-    items[index].price += delta;
+const changePrice = (index, newPrice) => {
+    items[index].price = newPrice;
     updateDemand(items[index]);
     renderItems();
 };
 
 const updateDemand = (item) => {
-    const demandFactor = (item.defaultPrice / item.price) * 100;
-    item.demand = Math.max(10, Math.min(200, demandFactor));
+    if (item.price < 0) {
+        item.demand = 1000;
+    } else {
+        const demandFactor = (item.defaultPrice / item.price) * 100;
+        item.demand = Math.max(10, Math.min(200, demandFactor));
+    }
+};
+
+const upgradeTown = () => {
+    const upgradeCost = 100 + townLevel * 10;
+    if (money >= upgradeCost) {
+        money -= upgradeCost;
+        townLevel++;
+        maxNPCs = 5 + townLevel * 10;
+        updateMoney();
+        updateTownLevel();
+        logAction(`Town upgraded to level ${townLevel}`);
+    } else {
+        logAction(`Not enough money to upgrade town. Need $${upgradeCost}`);
+    }
 };
 
 // Initialize the game
 renderGrid();
 renderItems();
 updateMoney();
+updateReputation();
+updateTownLevel();
 setInterval(() => {
     createNPC();
 }, 5000);
@@ -211,3 +266,4 @@ const render = () => {
 
 render();
 restockButton.onclick = restockItems;
+upgradeTownButton.onclick = upgradeTown;
