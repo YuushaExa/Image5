@@ -69,7 +69,8 @@ const renderItems = () => {
 
 const createNPC = () => {
     const npc = {
-        position: { row: streetRow, col: 0 }
+        position: { row: streetRow, col: 0 },
+        state: 'walkingToShop'
     };
     npcs.push(npc);
 };
@@ -77,42 +78,44 @@ const createNPC = () => {
 const moveNPC = (npc) => {
     const { row, col } = npc.position;
 
-    // Move towards the shop
-    if (row > 7) {
-        npc.position.row--;
-    } else if (col < shopStartCol) {
-        npc.position.col++;
-    } else if (col > shopEndCol) {
-        npc.position.col--;
-    } else if (row < cashierPosition.row) {
-        npc.position.row++;
-    } else if (row > cashierPosition.row) {
-        npc.position.row--;
-    } else if (col < cashierPosition.col) {
-        npc.position.col++;
-    } else if (col > cashierPosition.col) {
-        npc.position.col--;
-    } else {
-        // NPC reached the cashier, simulate buying
-        setTimeout(() => {
-            attemptToBuyItem(npc);
-        }, 1000);
-        return;
+    if (npc.state === 'walkingToShop') {
+        // Move towards the shop
+        if (row > 7) {
+            npc.position.row--;
+        } else if (col < shopStartCol) {
+            npc.position.col++;
+        } else if (col > shopEndCol) {
+            npc.position.col--;
+        } else if (row < cashierPosition.row) {
+            npc.position.row++;
+        } else if (row > cashierPosition.row) {
+            npc.position.row--;
+        } else if (col < cashierPosition.col) {
+            npc.position.col++;
+        } else if (col > cashierPosition.col) {
+            npc.position.col--;
+        } else {
+            // NPC reached the cashier, simulate buying
+            npc.state = 'buying';
+            setTimeout(() => {
+                attemptToBuyItem(npc);
+            }, 1000);
+        }
+    } else if (npc.state === 'walkingBack') {
+        // Move back to the street
+        if (row < streetRow) {
+            npc.position.row++;
+        } else if (col > 0) {
+            npc.position.col--;
+        } else {
+            // Remove NPC from game
+            npcs = npcs.filter(n => n !== npc);
+        }
     }
 };
 
 const moveNPCBack = (npc) => {
-    const { row, col } = npc.position;
-
-    if (row < streetRow) {
-        npc.position.row++;
-    } else if (col > 0) {
-        npc.position.col--;
-    } else {
-        // Remove NPC from game
-        npcs = npcs.filter(n => n !== npc);
-        return;
-    }
+    npc.state = 'walkingBack';
 };
 
 const attemptToBuyItem = (npc) => {
