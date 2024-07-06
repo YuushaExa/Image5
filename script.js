@@ -5,6 +5,7 @@ const itemsElement = document.getElementById('items');
 const moneyElement = document.getElementById('money');
 const restockButton = document.getElementById('restock');
 let money = 100;
+let shopReputation = 100; // Starting reputation
 
 const tileSize = 30;
 const rows = 10;
@@ -68,11 +69,13 @@ const renderItems = () => {
 };
 
 const createNPC = () => {
-    const npc = {
-        position: { row: streetRow, col: 0 },
-        state: 'walkingToShop'
-    };
-    npcs.push(npc);
+    if (Math.random() * 100 < shopReputation) {
+        const npc = {
+            position: { row: streetRow, col: 0 },
+            state: 'walkingToShop'
+        };
+        npcs.push(npc);
+    }
 };
 
 const moveNPC = (npc) => {
@@ -131,6 +134,7 @@ const attemptToBuyItem = (npc) => {
         moveNPCBack(npc);
     } else {
         logAction('NPC decided not to buy anything');
+        shopReputation = Math.max(10, shopReputation - 5); // Reduce reputation
         moveNPCBack(npc);
     }
 };
@@ -149,6 +153,11 @@ const logAction = (message) => {
     li.textContent = message;
     logElement.appendChild(li);
     logElement.scrollTop = logElement.scrollHeight;
+
+    // Limit log to the last 10 entries
+    while (logElement.childNodes.length > 10) {
+        logElement.removeChild(logElement.firstChild);
+    }
 };
 
 const updateMoney = () => {
