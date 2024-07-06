@@ -272,7 +272,7 @@ restockButton.onclick = restockItems;
 upgradeTownButton.onclick = upgradeTown;
 
 // Event listener for making item prices editable
-const makeEditable = (element) => {
+const makeEditable1 = (element) => {
     const index = element.getAttribute('data-index');
     const item = items[index];
     element.innerHTML = `<input type="number" value="${item.price}" min="0" onblur="updatePrice(${index}, this.value)">`;
