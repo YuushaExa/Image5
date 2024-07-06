@@ -60,13 +60,7 @@ const renderItems = () => {
     itemsElement.innerHTML = '';
     items.forEach((item, index) => {
         const li = document.createElement('li');
-        const priceInput = document.createElement('input');
-        priceInput.type = 'number';
-        priceInput.value = item.price;
-        priceInput.onchange = () => changePrice(index, parseInt(priceInput.value));
-        li.innerHTML = `${item.name} - $`;
-        li.appendChild(priceInput);
-        li.innerHTML += ` (Stock: ${item.stock}) <br> Demand: ${item.demand}%`;
+        li.innerHTML = `${item.name} - $<span class="clickable" data-index="${index}" onclick="makeEditable(this)">${item.price}</span> (Stock: ${item.stock}) <br> Demand: ${item.demand}%`;
         itemsElement.appendChild(li);
     });
 };
