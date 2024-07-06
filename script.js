@@ -5,9 +5,10 @@ const itemsElement = document.getElementById('items');
 const moneyElement = document.getElementById('money');
 const reputationElement = document.getElementById('reputation');
 const townLevelElement = document.getElementById('townLevel');
+const npcCountElement = document.getElementById('npcCount');
 const restockButton = document.getElementById('restock');
 const upgradeTownButton = document.getElementById('upgradeTown');
-const npcInfoCanvas = document.createElement('canvas'); // Create additional canvas for NPC info
+const npcInfoCanvas = document.createElement('canvas');
 npcInfoCanvas.width = 100;
 npcInfoCanvas.height = 100;
 document.body.appendChild(npcInfoCanvas);
@@ -16,8 +17,9 @@ const npcInfoCtx = npcInfoCanvas.getContext('2d');
 let money = 100;
 let shopReputation = 100;
 let townLevel = 0;
-let maxNPCs = 5;
-let npcCounter = 1; // Counter for naming NPCs
+let maxNPCs = 5; // Initial max NPCs for town level 0
+let npcCounter = 1;
+let npcs = [];
 
 const tileSize = 30;
 const rows = 10;
@@ -26,7 +28,6 @@ const streetRow = 9;
 const shopStartCol = 10;
 const shopEndCol = 14;
 const cashierPosition = { row: 5, col: 12 };
-let npcs = [];
 
 const tileMap = [
     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
@@ -86,6 +87,7 @@ const createNPC = () => {
             equipment: { weapon: null, shield: null }
         };
         npcs.push(npc);
+        updateNPCCount();
     }
 };
 
@@ -126,6 +128,7 @@ const moveNPC = (npc) => {
         } else {
             // Remove NPC from game
             npcs = npcs.filter(n => n !== npc);
+            updateNPCCount();
         }
     }
 };
@@ -146,6 +149,7 @@ const attemptToBuyItem = (npc) => {
         equipItem(npc, item);
         renderItems();
         updateMoney();
+        updateReputation(5); // Restore shop reputation by 5% after successful purchase
         moveNPCBack(npc);
     } else {
         logAction(`NPC#${npc.id} decided not to buy anything`);
@@ -171,11 +175,7 @@ const equipItem = (npc, item) => {
 
 const getRandomItem = () => {
     const availableItems = items.filter(item => item.stock > 0);
-    if (availableItems.length > 0) {
-        const randomIndex = Math.floor(Math.random() * availableItems.length);
-        return availableItems[randomIndex];
-    }
-    return null;
+    return availableItems.length > 0 ? availableItems[Math.floor(Math.random() * availableItems.length)] : null;
 };
 
 const logAction = (message) => {
@@ -194,7 +194,8 @@ const updateMoney = () => {
     moneyElement.textContent = money;
 };
 
-const updateReputation = () => {
+const updateReputation = (restorePercent = 0) => {
+    shopReputation = Math.min(100, shopReputation + restorePercent);
     reputationElement.textContent = `${shopReputation}%`;
 };
 
@@ -202,8 +203,8 @@ const updateTownLevel = () => {
     townLevelElement.textContent = townLevel;
 };
 
-const updateNPCs = () => {
-    npcs.forEach(npc => moveNPC(npc));
+const updateNPCCount = () => {
+    npcCountElement.textContent = `${npcs.length}/${maxNPCs}`;
 };
 
 const restockItems = () => {
@@ -236,9 +237,10 @@ const upgradeTown = () => {
     if (money >= upgradeCost) {
         money -= upgradeCost;
         townLevel++;
-        maxNPCs = 5 + townLevel * 10;
+        maxNPCs = 5 + townLevel * 10; // Update maxNPCs based on town level
         updateMoney();
         updateTownLevel();
+        updateNPCCount(); // Update NPC count display
         logAction(`Town upgraded to level ${townLevel}`);
     } else {
         logAction(`Not enough money to upgrade town. Need $${upgradeCost}`);
@@ -251,10 +253,13 @@ renderItems();
 updateMoney();
 updateReputation();
 updateTownLevel();
+updateNPCCount(); // Display initial NPC count
 setInterval(() => {
     createNPC();
 }, 5000);
-setInterval(updateNPCs, 1000);
+setInterval(() => {
+    npcs.forEach(npc => moveNPC(npc));
+}, 1000);
 
 // Rendering loop for the canvas
 const render = () => {
