@@ -15,6 +15,9 @@
         li {
             margin-bottom: 5px;
         }
+        .clickable {
+            cursor: pointer;
+        }
     </style>
 </head>
 <body>
@@ -35,6 +38,22 @@
         <p>Town Level: <span id="townLevel">0</span></p>
         <button id="upgradeTown">Upgrade Town</button>
     </div>
+    <script>
+        function makeEditable(element) {
+            var text = element.innerText.replace('$', '').trim();
+            element.innerHTML = '<input type="number" value="' + text + '" onblur="updateText(this)" />';
+            var input = element.firstChild;
+            input.focus();
+            input.setSelectionRange(0, input.value.length);
+        }
+
+        function updateText(input) {
+            var newText = parseInt(input.value);
+            var element = input.parentNode;
+            var index = element.dataset.index;
+            changePrice(index, newText);
+        }
+    </script>
     <script src="script.js"></script>
 </body>
 </html>
