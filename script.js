@@ -18,6 +18,18 @@ gatheringZoneCanvas.width = 150;
 gatheringZoneCanvas.height = 200;
 document.body.appendChild(gatheringZoneCanvas);
 const gatheringZoneCtx = gatheringZoneCanvas.getContext('2d');
+const dungeonCanvas = document.createElement('canvas');
+dungeonCanvas.width = 1000;
+dungeonCanvas.height = 1000;
+dungeonCanvas.style.width = '500px';
+dungeonCanvas.style.height = '500px';
+document.body.appendChild(dungeonCanvas);
+const dungeonCtx = dungeonCanvas.getContext('2d');
+const churchCanvas = document.createElement('canvas');
+churchCanvas.width = 150;
+churchCanvas.height = 200;
+document.body.appendChild(churchCanvas);
+const churchCtx = churchCanvas.getContext('2d');
 
 let money = 100;
 let shopReputation = 100;
@@ -25,6 +37,10 @@ let townLevel = 0;
 let maxNPCs = 5; // Initial max NPCs for town level 0
 let npcCounter = 1;
 let npcs = [];
+let dungeonActive = false;
+let crystal = { hp: 100 };
+let enemies = [];
+let deadNPCs = [];
 
 const tileSize = 30;
 const rows = 10;
@@ -88,8 +104,9 @@ const createNPC = () => {
             money: 100,
             attack: getRandomStat(),
             defense: getRandomStat(),
+            speed: getRandomStat(),
             hp: 100,
-            equipment: { weapon: null, shield: null }
+            equipment: { weapon: null, shield: null, potion: 0 }
         };
         npcs.push(npc);
         updateNPCCount();
@@ -136,38 +153,32 @@ const moveNPC = (npc) => {
             moveNPCToGatheringZone(npc);
         }
     } else if (npc.state === 'gathering') {
-        // NPC is in gathering zone, no need to move
+        // NPC is in the gathering zone
+        // Check if there are 5 or more NPCs in the gathering zone to start the dungeon
+        const gatheringNPCs = npcs.filter(n => n.state === 'gathering');
+        if (gatheringNPCs.length >= 5 && !dungeonActive) {
+            startDungeon();
+        }
     }
 };
 
 const moveNPCToGatheringZone = (npc) => {
-    const gatheringZonePosition = {
-        x: gatheringZoneCanvas.width - 30,
-        y: (npc.id - 1) * 40 + 10
-    };
-
-    npc.position = gatheringZonePosition;
-    renderNPCInGatheringZone(npc);
-};
-
-const renderNPCInGatheringZone = (npc) => {
-    gatheringZoneCtx.fillStyle = 'green';
-    gatheringZoneCtx.fillRect(npc.position.x, npc.position.y, tileSize, tileSize);
+    npc.position = { x: Math.random() * gatheringZoneCanvas.width, y: Math.random() * gatheringZoneCanvas.height };
+    updateNPCCount();
 };
 
 const attemptToBuyItem = (npc) => {
     const item = getRandomItem();
-    if (item && Math.random() * 100 < item.demand && npc.money >= item.price) {
-        money += item.price;
+    if (item && npc.money >= item.price && Math.random() * 100 < item.demand) {
         npc.money -= item.price;
+        money += item.price;
         item.stock--;
         item.sold++;
-        logAction(`NPC#${npc.id} bought ${item.name} for $${item.price}`);
-        updateDemand(item);
         equipItem(npc, item);
-        renderItems();
         updateMoney();
-        updateReputation(5); // Restore shop reputation by 5% after successful purchase
+        updateDemand(item);
+        logAction(`NPC#${npc.id} bought ${item.name} for $${item.price}.`);
+        updateReputation(5); // Increase shop reputation by 5% after successful purchase
         moveNPCBack(npc);
     } else {
         logAction(`NPC#${npc.id} decided not to buy anything.`);
@@ -182,7 +193,7 @@ const moveNPCBack = (npc) => {
 
 const equipItem = (npc, item) => {
     if (item.effect.hp) {
-        npc.hp += item.effect.hp;
+        npc.equipment.potion++;
     }
     if (item.effect.attack) {
         npc.attack += item.effect.attack;
@@ -216,7 +227,7 @@ const updateMoney = () => {
 };
 
 const updateReputation = (restorePercent = 0) => {
-    shopReputation = Math.min(100, shopReputation + restorePercent);
+    shopReputation = Math.min(100, Math.max(0, shopReputation + restorePercent));
     reputationElement.textContent = `${shopReputation}%`;
 };
 
@@ -225,7 +236,7 @@ const updateTownLevel = () => {
 };
 
 const updateNPCCount = () => {
-    npcCountElement.textContent = `${npcs.length}/${maxNPCs}`;
+    npcCountElement.textContent = `${npcs.filter(n => n.state !== 'dead').length}/${maxNPCs}`;
 };
 
 const restockItems = () => {
@@ -268,28 +279,101 @@ const upgradeTown = () => {
     }
 };
 
-// Initialize the game
-renderGrid();
-renderItems();
-updateMoney();
-updateReputation();
-updateTownLevel();
-updateNPCCount(); // Display initial NPC count
-setInterval(createNPC, 5000);
-setInterval(() => {
-    npcs.forEach(npc => moveNPC(npc));
-    renderGatheringZone(); // Render NPCs in gathering zone
-}, 1000);
-
-// Rendering loop for the canvas
-const render = () => {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    renderGrid();
-    npcs.forEach(npc => {
-        ctx.fillStyle = 'green';
-        ctx.fillRect(npc.position.col * tileSize, npc.position.row * tileSize, tileSize, tileSize);
+// Dungeon logic
+const startDungeon = () => {
+    dungeonActive = true;
+    crystal.hp = 100;
+    enemies = [];
+    const gatheringNPCs = npcs.filter(n => n.state === 'gathering');
+    gatheringNPCs.forEach(npc => {
+        npc.state = 'dungeon';
+        npc.position = { x: 50, y: 50 };
     });
-    requestAnimationFrame(render);
+    for (let i = 0; i < Math.floor(Math.random() * 5) + 1; i++) {
+        enemies.push({
+            hp: 30,
+            attack: getRandomStat(),
+            defense: getRandomStat(),
+            speed: getRandomStat(),
+            position: { x: Math.random() * 800 + 100, y: Math.random() * 800 + 100 }
+        });
+    }
+    renderDungeon();
+};
+
+const renderDungeon = () => {
+    dungeonCtx.clearRect(0, 0, dungeonCanvas.width, dungeonCanvas.height);
+    dungeonCtx.fillStyle = 'purple';
+    dungeonCtx.fillRect(dungeonCanvas.width - 60, dungeonCanvas.height - 60, 50, 50);
+
+    enemies.forEach(enemy => {
+        dungeonCtx.fillStyle = 'red';
+        dungeonCtx.fillRect(enemy.position.x, enemy.position.y, 30, 30);
+    });
+
+    npcs.filter(npc => npc.state === 'dungeon').forEach(npc => {
+        dungeonCtx.fillStyle = 'green';
+        dungeonCtx.fillRect(npc.position.x, npc.position.y, 30, 30);
+    });
+
+    // Check if all NPCs have reached the crystal or if there are no enemies left
+    const aliveNPCs = npcs.filter(npc => npc.state === 'dungeon');
+    if (aliveNPCs.every(npc => npc.position.x > dungeonCanvas.width - 100 && npc.position.y > dungeonCanvas.height - 100) || enemies.length === 0) {
+        dungeonBattle(aliveNPCs);
+    } else {
+        requestAnimationFrame(renderDungeon);
+    }
+};
+
+const dungeonBattle = (aliveNPCs) => {
+    aliveNPCs.forEach(npc => {
+        if (npc.hp < 30 && npc.equipment.potion > 0) {
+            npc.hp = Math.min(npc.hp + 100, 100);
+            npc.equipment.potion--;
+        }
+        enemies.forEach(enemy => {
+            if (npc.attack > enemy.defense) {
+                enemy.hp -= npc.attack - enemy.defense;
+                if (enemy.hp <= 0) {
+                    npc.money += 50;
+                    logAction(`NPC#${npc.id} killed an enemy and earned 50 gold.`);
+                }
+            }
+            if (enemy.attack > npc.defense) {
+                npc.hp -= enemy.attack - npc.defense;
+                if (npc.hp <= 0) {
+                    npc.state = 'dead';
+                    deadNPCs.push(npc);
+                    logAction(`NPC#${npc.id} died in the dungeon.`);
+                }
+            }
+        });
+    });
+
+    enemies = enemies.filter(enemy => enemy.hp > 0);
+
+    if (crystal.hp > 0 && aliveNPCs.some(npc => npc.position.x > dungeonCanvas.width - 100 && npc.position.y > dungeonCanvas.height - 100)) {
+        crystal.hp -= aliveNPCs.reduce((total, npc) => total + npc.attack, 0);
+        if (crystal.hp <= 0) {
+            logAction(`Crystal destroyed! NPCs earned 100 gold each.`);
+            aliveNPCs.forEach(npc => npc.money += 100);
+            endDungeon();
+        }
+    } else if (enemies.length === 0) {
+        logAction(`All enemies defeated! NPCs earned 100 gold each.`);
+        aliveNPCs.forEach(npc => npc.money += 100);
+        endDungeon();
+    } else {
+        requestAnimationFrame(renderDungeon);
+    }
+};
+
+const endDungeon = () => {
+    dungeonActive = false;
+    npcs.filter(npc => npc.state === 'dungeon').forEach(npc => {
+        npc.state = 'walkingBack';
+    });
+    renderGatheringZone();
 };
 
 const renderGatheringZone = () => {
@@ -300,54 +384,90 @@ const renderGatheringZone = () => {
     });
 };
 
-render();
-restockButton.onclick = restockItems;
-upgradeTownButton.onclick = upgradeTown;
-
-// Event listener for making item prices editable
-const makeEditable = (element) => {
-    const index = element.getAttribute('data-index');
-    const item = items[index];
-    element.innerHTML = `<input type="number" value="${item.price}" min="0" onblur="updatePrice(${index}, this.value)">`;
-    element.querySelector('input').focus();
+const resurrectNPCs = () => {
+    deadNPCs.forEach(npc => {
+        setTimeout(() => {
+            npc.state = 'walkingToShop';
+            deadNPCs = deadNPCs.filter(n => n !== npc);
+        }, 60000);
+    });
+    renderChurch();
 };
 
-// Update item price and re-render
-const updatePrice = (index, newPrice) => {
-    items[index].price = parseInt(newPrice);
-    updateDemand(items[index]);
-    renderItems();
+const renderChurch = () => {
+    churchCtx.clearRect(0, 0, churchCanvas.width, churchCanvas.height);
+    deadNPCs.forEach((npc, index) => {
+        churchCtx.fillStyle = 'gray';
+        churchCtx.fillRect(10, 30 * index, tileSize, tileSize);
+        churchCtx.fillStyle = 'black';
+        churchCtx.fillText(npc.name, 10 + tileSize, 30 * index + tileSize / 2);
+    });
 };
 
-// Event listener for clicking on NPC to show info
-canvas.addEventListener('click', (event) => {
-    const clickedX = event.offsetX;
-    const clickedY = event.offsetY;
+// Initialize the game
+renderGrid();
+renderItems();
+updateMoney();
+updateReputation();
+updateTownLevel();
+updateNPCCount();
+
+setInterval(createNPC, 5000); // Create an NPC every 5 seconds
+
+setInterval(() => {
+    npcs.forEach(moveNPC);
+    renderGrid();
     npcs.forEach(npc => {
-        const npcX = npc.position.col * tileSize;
-        const npcY = npc.position.row * tileSize;
-        if (clickedX >= npcX && clickedX < npcX + tileSize &&
-            clickedY >= npcY && clickedY < npcY + tileSize) {
-            renderNPCInfo(npc);
+        if (npc.state === 'walkingToShop' || npc.state === 'walkingBack') {
+            ctx.fillStyle = 'green';
+            ctx.fillRect(npc.position.col * tileSize, npc.position.row * tileSize, tileSize, tileSize);
         }
     });
-});
+}, 1000);
 
-// Function to render NPC information
-const renderNPCInfo = (npc) => {
+// Event Listeners
+restockButton.addEventListener('click', restockItems);
+upgradeTownButton.addEventListener('click', upgradeTown);
+npcInfoCanvas.addEventListener('click', showNPCInfo);
+
+function makeEditable(element) {
+    const index = element.getAttribute('data-index');
+    const item = items[index];
+    element.innerHTML = `<input type="number" value="${item.price}" onblur="updateText(this, ${index})" />`;
+    const input = element.firstChild;
+    input.focus();
+    input.setSelectionRange(0, input.value.length);
+}
+
+function updateText(input, index) {
+    const newPrice = parseInt(input.value);
+    changePrice(index, newPrice);
+}
+
+// Render NPC Info
+function showNPCInfo(event) {
+    const x = event.clientX - npcInfoCanvas.offsetLeft;
+    const y = event.clientY - npcInfoCanvas.offsetTop;
+    const npc = npcs.find(npc => {
+        const npcX = npc.position.x;
+        const npcY = npc.position.y;
+        return x > npcX && x < npcX + tileSize && y > npcY && y < npcY + tileSize;
+    });
+    if (npc) {
+        renderNPCInfo(npc);
+    }
+}
+
+function renderNPCInfo(npc) {
     npcInfoCtx.clearRect(0, 0, npcInfoCanvas.width, npcInfoCanvas.height);
-    npcInfoCtx.fillStyle = 'white';
-    npcInfoCtx.fillRect(0, 0, npcInfoCanvas.width, npcInfoCanvas.height);
     npcInfoCtx.fillStyle = 'black';
-    npcInfoCtx.fillText(`Name: ${npc.name}`, 5, 15);
-    npcInfoCtx.fillText(`Gold: ${npc.money}`, 5, 30);
-    npcInfoCtx.fillText(`HP: ${npc.hp}`, 5, 45);
-    npcInfoCtx.fillText(`Attack: ${npc.attack}`, 5, 60);
-    npcInfoCtx.fillText(`Defense: ${npc.defense}`, 5, 75);
-    if (npc.equipment.weapon) {
-        npcInfoCtx.fillText(`Weapon: ${npc.equipment.weapon}`, 5, 90);
-    }
-    if (npc.equipment.shield) {
-        npcInfoCtx.fillText(`Shield: ${npc.equipment.shield}`, 5, 105);
-    }
-};
+    npcInfoCtx.fillText(`Name: ${npc.name}`, 10, 20);
+    npcInfoCtx.fillText(`Attack: ${npc.attack}`, 10, 40);
+    npcInfoCtx.fillText(`Defense: ${npc.defense}`, 10, 60);
+    npcInfoCtx.fillText(`HP: ${npc.hp}`, 10, 80);
+    npcInfoCtx.fillText(`Gold: ${npc.money}`, 10, 100);
+    npcInfoCtx.fillText(`Equipment:`, 10, 120);
+    npcInfoCtx.fillText(`Weapon: ${npc.equipment.weapon || 'None'}`, 10, 140);
+    npcInfoCtx.fillText(`Shield: ${npc.equipment.shield || 'None'}`, 10, 160);
+    npcInfoCtx.fillText(`Potions: ${npc.equipment.potion}`, 10, 180);
+}
