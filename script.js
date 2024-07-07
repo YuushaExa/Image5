@@ -83,74 +83,62 @@ const createNPC = () => {
         const npc = {
             id: npcCounter++,
             name: `NPC#${npcCounter}`,
-            position: { x: 0, y: streetRow * tileSize },
+            position: { row: streetRow, col: 0 },
             state: 'walkingToShop',
             money: 100,
             attack: getRandomStat(),
             defense: getRandomStat(),
             hp: 100,
-            equipment: { weapon: null, shield: null },
-            speed: 1 + Math.random() * 2 // Adjust speed range as needed
+            equipment: { weapon: null, shield: null }
         };
         npcs.push(npc);
+        updateNPCCount();
     }
 };
-
-const createEnemy = () => {
-    enemies.push({
-        hp: 30,
-        attack: getRandomStat(),
-        defense: getRandomStat(),
-        position: { x: Math.random() * 800 + 100, y: Math.random() * 800 + 100 },
-        speed: 1 + Math.random() * 2 // Adjust speed range as needed
-    });
-};
-
 
 const getRandomStat = () => Math.floor(Math.random() * 9) + 2;
 
-const moveNPCs = () => {
-    npcs.forEach(npc => {
-        if (npc.state === 'walkingToShop') {
-            npc.position.x += npc.speed;
-            if (npc.position.x >= shopCol * tileSize) {
-                npc.state = 'shopping';
+const moveNPC = (npc) => {
+    const { row, col } = npc.position;
+
+    if (npc.state === 'walkingToShop') {
+        // Move towards the shop
+        if (row > 7) {
+            npc.position.row--;
+        } else if (col < shopStartCol) {
+            npc.position.col++;
+        } else if (col > shopEndCol) {
+            npc.position.col--;
+        } else if (row < cashierPosition.row) {
+            npc.position.row++;
+        } else if (row > cashierPosition.row) {
+            npc.position.row--;
+        } else if (col < cashierPosition.col) {
+            npc.position.col++;
+        } else if (col > cashierPosition.col) {
+            npc.position.col--;
+        } else {
+            // NPC reached the cashier, simulate buying
+            npc.state = 'buying';
+            setTimeout(() => {
                 attemptToBuyItem(npc);
-            }
-        } else if (npc.state === 'walkingBack') {
-            npc.position.x -= npc.speed;
-            if (npc.position.x <= 0) {
-                npc.state = 'gathering';
-                moveNPCToGatheringZone(npc);
-            }
+            }, 1000);
         }
-    });
-};
-
-const renderDungeon = () => {
-    dungeonCtx.clearRect(0, 0, dungeonCanvas.width, dungeonCanvas.height);
-    dungeonCtx.fillStyle = 'purple';
-    dungeonCtx.fillRect(dungeonCanvas.width - 60, dungeonCanvas.height - 60, 50, 50);
-
-    enemies.forEach(enemy => {
-        dungeonCtx.fillStyle = 'red';
-        dungeonCtx.fillRect(enemy.position.x, enemy.position.y, 30, 30);
-    });
-
-    npcs.filter(npc => npc.state === 'dungeon').forEach(npc => {
-        dungeonCtx.fillStyle = 'green';
-        dungeonCtx.fillRect(npc.position.x, npc.position.y, 30, 30);
-    });
-
-    // Check if all NPCs have reached the crystal or if there are no enemies left
-    const aliveNPCs = npcs.filter(npc => npc.state === 'dungeon');
-    if (aliveNPCs.every(npc => npc.position.x > dungeonCanvas.width - 100 && npc.position.y > dungeonCanvas.height - 100) || enemies.length === 0) {
-        dungeonBattle(aliveNPCs);
-    } else {
-        requestAnimationFrame(renderDungeon);
+    } else if (npc.state === 'walkingBack') {
+        // Move back to the street
+        if (row < streetRow) {
+            npc.position.row++;
+        } else if (col > 0) {
+            npc.position.col--;
+        } else {
+            // Move NPC to gathering zone after shopping
+            npc.state = 'gathering';
+            moveNPCToGatheringZone(npc);
+        }
+    } else if (npc.state === 'gathering') {
+        // NPC is in gathering zone, no need to move
     }
 };
-
 
 const moveNPCToGatheringZone = (npc) => {
     const gatheringZonePosition = {
@@ -190,7 +178,6 @@ const attemptToBuyItem = (npc) => {
 
 const moveNPCBack = (npc) => {
     npc.state = 'walkingBack';
-    npc.position = { x: Math.random() * gatheringZoneCanvas.width, y: Math.random() * gatheringZoneCanvas.height };
 };
 
 const equipItem = (npc, item) => {
