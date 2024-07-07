@@ -3,40 +3,43 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Idle Shop Game</title>
+    <title>Item Shop Game</title>
     <style>
-        #gameContainer {
-            display: flex;
-            flex-direction: row;
-        }
         canvas {
             border: 1px solid black;
         }
+        ul {
+            list-style-type: none;
+            padding: 0;
+        }
+        li {
+            margin-bottom: 5px;
+        }
         .clickable {
             cursor: pointer;
-            color: blue;
-            text-decoration: underline;
         }
     </style>
 </head>
 <body>
-    <div id="gameContainer">
-        <canvas id="gameCanvas" width="640" height="640"></canvas>
-        <canvas id="npcInfo" width="200" height="200"></canvas>
-        <canvas id="gatheringZone" width="200" height="200"></canvas>
-        <canvas id="dungeon" width="1000" height="1000" style="transform: scale(0.5);"></canvas>
-        <canvas id="church" width="200" height="200"></canvas>
+    <canvas id="gameCanvas" width="600" height="300"></canvas>
+    <div>
+        <h3>Log</h3>
+        <ul id="log"></ul>
     </div>
     <div>
-        <div id="money"></div>
-        <div id="reputation"></div>
-        <div id="townLevel"></div>
-        <div id="npcCount"></div>
-        <button id="restock">Restock Items</button>
-        <button id="upgradeTown">Upgrade Town</button>
+        <h3>Items</h3>
         <ul id="items"></ul>
-        <div id="log"></div>
+        <button id="restock">Restock Items</button>
     </div>
+    <div>
+        <h3>Shop Status</h3>
+        <p>Money: $<span id="money">100</span></p>
+        <p>Shop Reputation: <span id="reputation">100%</span></p>
+        <p>Town Level: <span id="townLevel">0</span></p>
+        <button id="upgradeTown">Upgrade Town</button>
+        <div id="npcCount">0/5</div>
+    </div>
+
     <script src="script.js"></script>
 </body>
 </html>
