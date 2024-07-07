@@ -301,6 +301,54 @@ const startDungeon = () => {
     renderDungeon();
 };
 
+const dungeonBattle = () => {
+    npcs.filter(npc => npc.state === 'dungeon').forEach(npc => {
+        if (npc.hp < 30 && npc.equipment.potion > 0) {
+            npc.hp = Math.min(npc.hp + 100, 100);
+            npc.equipment.potion--;
+        }
+        enemies.forEach(enemy => {
+            if (Math.abs(npc.position.x - enemy.position.x) < tileSize && Math.abs(npc.position.y - enemy.position.y) < tileSize) {
+                // Attack logic
+                if (npc.attack > enemy.defense) {
+                    enemy.hp -= npc.attack - enemy.defense;
+                    if (enemy.hp <= 0) {
+                        npc.money += 50;
+                        logAction(`NPC#${npc.id} killed an enemy and earned 50 gold.`);
+                    }
+                }
+                if (enemy.attack > npc.defense) {
+                    npc.hp -= enemy.attack - npc.defense;
+                    if (npc.hp <= 0) {
+                        npc.state = 'dead';
+                        deadNPCs.push(npc);
+                        logAction(`NPC#${npc.id} died in the dungeon.`);
+                    }
+                }
+            }
+        });
+    });
+
+    // Remove defeated enemies
+    enemies = enemies.filter(enemy => enemy.hp > 0);
+
+    if (crystal.hp > 0) {
+        // Check if any NPCs are attacking the crystal
+        npcs.filter(npc => npc.state === 'dungeon').forEach(npc => {
+            if (npc.position.x > dungeonCanvas.width - 100 && npc.position.y > dungeonCanvas.height - 100) {
+                crystal.hp -= npc.attack;
+                if (crystal.hp <= 0) {
+                    logAction(`Crystal destroyed! NPCs earned 100 gold each.`);
+                    npcs.filter(npc => npc.state === 'dungeon').forEach(npc => npc.money += 100);
+                    endDungeon();
+                }
+            }
+        });
+    } else {
+        endDungeon();
+    }
+};
+
 const renderDungeon = () => {
     dungeonCtx.clearRect(0, 0, dungeonCanvas.width, dungeonCanvas.height);
     dungeonCtx.fillStyle = 'purple';
@@ -316,54 +364,9 @@ const renderDungeon = () => {
         dungeonCtx.fillRect(npc.position.x, npc.position.y, 30, 30);
     });
 
-    // Check if all NPCs have reached the crystal or if there are no enemies left
-    const aliveNPCs = npcs.filter(npc => npc.state === 'dungeon');
-    if (aliveNPCs.every(npc => npc.position.x > dungeonCanvas.width - 100 && npc.position.y > dungeonCanvas.height - 100) || enemies.length === 0) {
-        dungeonBattle(aliveNPCs);
-    } else {
-        requestAnimationFrame(renderDungeon);
-    }
-};
+    dungeonBattle(); // Ensure battle logic is called within the render loop
 
-const dungeonBattle = (aliveNPCs) => {
-    aliveNPCs.forEach(npc => {
-        if (npc.hp < 30 && npc.equipment.potion > 0) {
-            npc.hp = Math.min(npc.hp + 100, 100);
-            npc.equipment.potion--;
-        }
-        enemies.forEach(enemy => {
-            if (npc.attack > enemy.defense) {
-                enemy.hp -= npc.attack - enemy.defense;
-                if (enemy.hp <= 0) {
-                    npc.money += 50;
-                    logAction(`NPC#${npc.id} killed an enemy and earned 50 gold.`);
-                }
-            }
-            if (enemy.attack > npc.defense) {
-                npc.hp -= enemy.attack - npc.defense;
-                if (npc.hp <= 0) {
-                    npc.state = 'dead';
-                    deadNPCs.push(npc);
-                    logAction(`NPC#${npc.id} died in the dungeon.`);
-                }
-            }
-        });
-    });
-
-    enemies = enemies.filter(enemy => enemy.hp > 0);
-
-    if (crystal.hp > 0 && aliveNPCs.some(npc => npc.position.x > dungeonCanvas.width - 100 && npc.position.y > dungeonCanvas.height - 100)) {
-        crystal.hp -= aliveNPCs.reduce((total, npc) => total + npc.attack, 0);
-        if (crystal.hp <= 0) {
-            logAction(`Crystal destroyed! NPCs earned 100 gold each.`);
-            aliveNPCs.forEach(npc => npc.money += 100);
-            endDungeon();
-        }
-    } else if (enemies.length === 0) {
-        logAction(`All enemies defeated! NPCs earned 100 gold each.`);
-        aliveNPCs.forEach(npc => npc.money += 100);
-        endDungeon();
-    } else {
+    if (dungeonActive) {
         requestAnimationFrame(renderDungeon);
     }
 };
