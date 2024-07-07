@@ -110,7 +110,7 @@ const simulateDungeon = () => {
                     hp: 30,
                     attack: Math.floor(Math.random() * 7) + 4, // Random attack (4-10)
                     position: { x: Math.random() * 900 + 50, y: Math.random() * 900 + 50 },
-                    speed: 1
+                    speed: 10
                     
                 };
                 enemies.push(enemy);
@@ -224,7 +224,7 @@ const createNPC = () => {
             defense: getRandomStat(),
             hp: 100,
             equipment: { weapon: null, shield: null },
-            speed: 2
+            speed: 20
         };
         npcs.push(npc);
         updateNPCCount();
