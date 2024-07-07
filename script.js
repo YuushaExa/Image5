@@ -18,14 +18,6 @@ gatheringZoneCanvas.width = 150;
 gatheringZoneCanvas.height = 200;
 document.body.appendChild(gatheringZoneCanvas);
 const gatheringZoneCtx = gatheringZoneCanvas.getContext('2d');
-const dungeonCanvas = document.createElement('canvas');
-dungeonCanvas.width = 1000;
-dungeonCanvas.height = 1000;
-dungeonCanvas.style.width = '500px'; // Scaled size for display
-dungeonCanvas.style.height = '500px';
-document.body.appendChild(dungeonCanvas);
-const dungeonCtx = dungeonCanvas.getContext('2d');
-
 
 let money = 100;
 let shopReputation = 100;
@@ -76,132 +68,6 @@ const renderGrid = () => {
         }
     }
 };
-const crystal = {
-    hp: 100,
-    position: { x: 900, y: 900 } // Position at the end of dungeon
-};
-
-const enemies = []; // Array to store enemy objects
-const enterDungeon = () => {
-    // Move NPCs from gathering zone to dungeon
-    npcs.filter(npc => npc.state === 'gathering').forEach(npc => {
-        npc.state = 'dungeon';
-        npc.position = { x: 50, y: 50 }; // Initial position inside dungeon
-    });
-    renderDungeon(); // Render NPCs inside the dungeon
-};
-const simulateDungeon = () => {
-    // NPC actions inside dungeon
-    npcs.filter(npc => npc.state === 'dungeon').forEach(npc => {
-        // Simulate attacking the crystal
-        if (npc.position.x < crystal.position.x) npc.position.x += npc.speed;
-        if (npc.position.y < crystal.position.y) npc.position.y += npc.speed;
-        if (npc.position.x >= crystal.position.x && npc.position.y >= crystal.position.y) {
-            crystal.hp -= npc.attack; // NPC attacks crystal
-            // Handle crystal destruction
-            if (crystal.hp <= 0) {
-                handleDungeonCompletion(npc);
-            }
-        } else {
-            // NPC encounters enemies randomly
-            const encounterChance = Math.random();
-            if (encounterChance < 0.3) { // 30% chance to encounter an enemy
-                const enemy = {
-                    hp: 30,
-                    attack: Math.floor(Math.random() * 7) + 4, // Random attack (4-10)
-                    position: { x: Math.random() * 900 + 50, y: Math.random() * 900 + 50 },
-                    speed: 10
-                    
-                };
-                enemies.push(enemy);
-            }
-            // Handle NPC interactions with enemies
-            enemies.forEach(enemy => {
-                 if (enemy.position.x > crystal.position.x) enemy.position.x -= enemy.speed;
-        if (enemy.position.y > crystal.position.y) enemy.position.y -= enemy.speed;
-                if (npc.position.x >= enemy.position.x && npc.position.y >= enemy.position.y) {
-                    enemy.hp -= npc.attack;
-                    if (enemy.hp <= 0) {
-                        npc.money += 50; // Reward NPC for killing enemy
-                        enemies.splice(enemies.indexOf(enemy), 1); // Remove dead enemy
-                    }
-                }
-            });
-        }
-    });
-    renderDungeon();
-};
-
-const handleCollisions = () => {
-    npcs.filter(npc => npc.state === 'dungeon').forEach(npc => {
-        // Check collision with crystal
-        if (npc.position.x >= crystal.position.x && npc.position.y >= crystal.position.y) {
-            crystal.hp -= npc.attack;
-            if (crystal.hp <= 0) {
-                handleDungeonCompletion(npc);
-            }
-        }
-        // Check collision with enemies
-        enemies.forEach(enemy => {
-            if (npc.position.x >= enemy.position.x && npc.position.y >= enemy.position.y) {
-                enemy.hp -= npc.attack;
-                if (enemy.hp <= 0) {
-                    npc.money += 50; // Reward NPC for killing enemy
-                    enemies.splice(enemies.indexOf(enemy), 1); // Remove dead enemy
-                }
-            }
-        });
-    });
-};
-
-
-const handleDungeonCompletion = (npc) => {
-    // Handle dungeon completion logic
-    logAction(`NPC#${npc.id} destroyed the crystal!`);
-    // Clean up dungeon state
-    crystal.hp = 100;
-    enemies.length = 0;
-    // Move NPCs back from dungeon to gathering zone
-    npcs.forEach(npc => {
-        if (npc.state === 'dungeon') {
-            npc.state = 'gathering';
-            npc.position = { x: gatheringZoneCanvas.width - 30, y: (npc.id - 1) * 40 + 10 };
-        }
-    });
-    renderGatheringZone();
-};
-
-const renderDungeon = () => {
-    dungeonCtx.clearRect(0, 0, dungeonCanvas.width, dungeonCanvas.height);
-    // Render dungeon environment
-    dungeonCtx.fillStyle = 'gray';
-    dungeonCtx.fillRect(0, 0, dungeonCanvas.width, dungeonCanvas.height);
-    // Render crystal
-    dungeonCtx.fillStyle = 'purple';
-    dungeonCtx.fillRect(crystal.position.x, crystal.position.y, tileSize, tileSize);
-    // Render enemies
-    dungeonCtx.fillStyle = 'red';
-    enemies.forEach(enemy => {
-        dungeonCtx.fillRect(enemy.position.x, enemy.position.y, tileSize, tileSize);
-    });
-    // Render NPCs
-    npcs.filter(npc => npc.state === 'dungeon').forEach(npc => {
-        dungeonCtx.fillStyle = 'green';
-        dungeonCtx.fillRect(npc.position.x, npc.position.y, tileSize, tileSize);
-    });
-};
-
-
-setInterval(() => {
-    npcs.forEach(npc => {
-        if (npc.state === 'gathering' && npcs.filter(n => n.state === 'gathering').length >= 5) {
-            enterDungeon();
-        }
-    });
-    if (npcs.some(npc => npc.state === 'dungeon')) {
-        simulateDungeon();
-    }
-}, 1000);
 
 const renderItems = () => {
     itemsElement.innerHTML = '';
@@ -223,8 +89,7 @@ const createNPC = () => {
             attack: getRandomStat(),
             defense: getRandomStat(),
             hp: 100,
-            equipment: { weapon: null, shield: null },
-            speed: 20
+            equipment: { weapon: null, shield: null }
         };
         npcs.push(npc);
         updateNPCCount();
