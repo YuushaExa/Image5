@@ -94,6 +94,8 @@ const simulateDungeon = () => {
     // NPC actions inside dungeon
     npcs.filter(npc => npc.state === 'dungeon').forEach(npc => {
         // Simulate attacking the crystal
+        if (npc.position.x < crystal.position.x) npc.position.x += npc.speed;
+        if (npc.position.y < crystal.position.y) npc.position.y += npc.speed;
         if (npc.position.x >= crystal.position.x && npc.position.y >= crystal.position.y) {
             crystal.hp -= npc.attack; // NPC attacks crystal
             // Handle crystal destruction
@@ -107,12 +109,16 @@ const simulateDungeon = () => {
                 const enemy = {
                     hp: 30,
                     attack: Math.floor(Math.random() * 7) + 4, // Random attack (4-10)
-                    position: { x: Math.random() * 900 + 50, y: Math.random() * 900 + 50 }
+                    position: { x: Math.random() * 900 + 50, y: Math.random() * 900 + 50 },
+                    speed: 1
+                    
                 };
                 enemies.push(enemy);
             }
             // Handle NPC interactions with enemies
             enemies.forEach(enemy => {
+                 if (enemy.position.x > crystal.position.x) enemy.position.x -= enemy.speed;
+        if (enemy.position.y > crystal.position.y) enemy.position.y -= enemy.speed;
                 if (npc.position.x >= enemy.position.x && npc.position.y >= enemy.position.y) {
                     enemy.hp -= npc.attack;
                     if (enemy.hp <= 0) {
@@ -125,6 +131,29 @@ const simulateDungeon = () => {
     });
     renderDungeon();
 };
+
+const handleCollisions = () => {
+    npcs.filter(npc => npc.state === 'dungeon').forEach(npc => {
+        // Check collision with crystal
+        if (npc.position.x >= crystal.position.x && npc.position.y >= crystal.position.y) {
+            crystal.hp -= npc.attack;
+            if (crystal.hp <= 0) {
+                handleDungeonCompletion(npc);
+            }
+        }
+        // Check collision with enemies
+        enemies.forEach(enemy => {
+            if (npc.position.x >= enemy.position.x && npc.position.y >= enemy.position.y) {
+                enemy.hp -= npc.attack;
+                if (enemy.hp <= 0) {
+                    npc.money += 50; // Reward NPC for killing enemy
+                    enemies.splice(enemies.indexOf(enemy), 1); // Remove dead enemy
+                }
+            }
+        });
+    });
+};
+
 
 const handleDungeonCompletion = (npc) => {
     // Handle dungeon completion logic
@@ -162,6 +191,7 @@ const renderDungeon = () => {
     });
 };
 
+
 setInterval(() => {
     npcs.forEach(npc => {
         if (npc.state === 'gathering' && npcs.filter(n => n.state === 'gathering').length >= 5) {
@@ -193,7 +223,8 @@ const createNPC = () => {
             attack: getRandomStat(),
             defense: getRandomStat(),
             hp: 100,
-            equipment: { weapon: null, shield: null }
+            equipment: { weapon: null, shield: null },
+            speed: 2
         };
         npcs.push(npc);
         updateNPCCount();
